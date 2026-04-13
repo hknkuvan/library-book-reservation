@@ -3,9 +3,15 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import AdminDashboard from './pages/AdminDashboard';
 import Profile from './pages/Profile';
+import BookList from './pages/admin/BookList';
+import BookCreate from './pages/admin/BookCreate';
+import BookDetail from './pages/admin/BookDetail';
+import BookEdit from './pages/admin/BookEdit';
 
 function AppRoutes() {
   const { isAuthenticated, isAdmin, loading } = useAuth();
@@ -50,6 +56,22 @@ function AppRoutes() {
             : <Register />
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          isAuthenticated
+            ? <Navigate to={isAdmin ? '/admin' : '/home'} replace />
+            : <ForgotPassword />
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          isAuthenticated
+            ? <Navigate to={isAdmin ? '/admin' : '/home'} replace />
+            : <ResetPassword />
+        }
+      />
 
       {/* Protected routes - End User */}
       <Route path="/home" element={
@@ -67,6 +89,26 @@ function AppRoutes() {
       <Route path="/admin" element={
         <ProtectedRoute requireAdmin>
           <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/books" element={
+        <ProtectedRoute requireAdmin>
+          <BookList />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/books/create" element={
+        <ProtectedRoute requireAdmin>
+          <BookCreate />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/books/:id" element={
+        <ProtectedRoute requireAdmin>
+          <BookDetail />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/books/:id/edit" element={
+        <ProtectedRoute requireAdmin>
+          <BookEdit />
         </ProtectedRoute>
       } />
 

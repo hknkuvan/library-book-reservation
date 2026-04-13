@@ -24,9 +24,14 @@ export default function Header() {
 
       <nav className="header-nav">
         {isAdmin ? (
-          <Link to="/admin" className="nav-link" id="nav-admin-dashboard">
-            Dashboard
-          </Link>
+          <>
+            <Link to="/admin" className="nav-link" id="nav-admin-dashboard">
+              Dashboard
+            </Link>
+            <Link to="/admin/books" className="nav-link" id="nav-admin-books">
+              Books
+            </Link>
+          </>
         ) : (
           <>
             <Link to="/home" className="nav-link" id="nav-home">

@@ -2,12 +2,12 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 
 /**
- * Verify JWT token and attach user to request
+ * Authentication middleware - verifies JWT token
  */
 const authenticate = (req, res, next) => {
   try {
+    // Get token from header
     const authHeader = req.headers.authorization;
-
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -17,7 +17,7 @@ const authenticate = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
 
-    // Check if token is blacklisted
+    // Check if token is blacklisted (user logged out)
     const blacklisted = db.prepare(
       'SELECT id FROM token_blacklist WHERE token = ?'
     ).get(token);
@@ -35,32 +35,36 @@ const authenticate = (req, res, next) => {
     req.token = token;
     next();
   } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token.'
+      });
+    }
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
         message: 'Token expired. Please login again.'
       });
     }
-    return res.status(401).json({
+    res.status(500).json({
       success: false,
-      message: 'Invalid token.'
+      message: 'Authentication error.'
     });
   }
 };
 
 /**
- * Check if user has required role
+ * Admin authorization middleware - checks if user has system_admin role
  */
-const authorize = (...roles) => {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Insufficient permissions.'
-      });
-    }
-    next();
-  };
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'system_admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Admin privileges required.'
+    });
+  }
+  next();
 };
 
-module.exports = { authenticate, authorize };
+module.exports = { authenticate, requireAdmin };

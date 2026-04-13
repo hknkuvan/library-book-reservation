@@ -100,6 +100,12 @@ export default function Login() {
           </button>
         </form>
 
+        <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+          <Link to="/forgot-password" id="link-forgot-password" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+            Forgot Password?
+          </Link>
+        </div>
+
         <div className="form-footer">
           Don't have an account?{' '}
           <Link to="/register" id="link-register">Sign up</Link>

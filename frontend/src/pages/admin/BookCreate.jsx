@@ -129,7 +129,7 @@ export default function BookCreate() {
               <div className="form-group">
                 <label className="form-label" htmlFor="book-pubdate">Publication Date</label>
                 <input type="date" id="book-pubdate" name="publication_date" className="form-input"
-                  value={formData.publication_date} onChange={handleChange} />
+                  value={formData.publication_date} onChange={handleChange} max="2099-12-31" />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="book-pages">Pages</label>

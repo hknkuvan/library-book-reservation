@@ -171,7 +171,7 @@ export default function BookEdit() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label" htmlFor="edit-pubdate">Publication Date</label>
-                <input type="date" id="edit-pubdate" name="publication_date" className="form-input" value={formData.publication_date} onChange={handleChange} />
+                <input type="date" id="edit-pubdate" name="publication_date" className="form-input" value={formData.publication_date} onChange={handleChange} max="2099-12-31" />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="edit-pages">Pages</label>

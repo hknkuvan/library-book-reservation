@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
@@ -203,164 +203,168 @@ export default function EReader() {
   );
 }
 
-// Child Component to handle the pagination logic perfectly without re-rendering everything
-function PaginatedReaderArea({ chapter, fontSize, fontFamily, currentChpNum, maxChpNum, handleNextChapter, handlePrevChapter, theme }) {
+// Child Component to handle the pagination logic without re-rendering during drag
+function PaginatedReaderArea({ chapter, fontSize, fontFamily, currentChpNum, maxChpNum, handleNextChapter, handlePrevChapter }) {
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(0); // 0-indexed internally
-  
-  // Swipe State
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [offsetX, setOffsetX] = useState(0);
 
-  const containerRef = useState(null);
+  const trackRef = useRef(null);      // direct DOM ref — no querySelector needed
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const offsetXRef = useRef(0);
+  const rafRef = useRef(null);
+  const resizeTimerRef = useRef(null);
 
-  // Recalculate layout
+  // Sync the CSS transform from refs — called in rAF and on page change
+  const applyTransform = useCallback((offset = 0, animated = false) => {
+    if (!trackRef.current) return;
+    trackRef.current.style.transition = animated ? 'transform 0.25s ease' : 'none';
+    trackRef.current.style.transform = `translateX(calc(-${currentPage * 100}vw + ${offset}px))`;
+  }, [currentPage]);
+
+  // After currentPage changes, snap to new position with a short animation
   useEffect(() => {
-    const el = document.getElementById('paginated-text-track');
-    if (el) {
-       // Allow DOM to update first
-       setTimeout(() => {
-         const scrollW = el.scrollWidth;
-         const clientW = el.clientWidth;
-         const tp = Math.ceil(scrollW / clientW);
-         setTotalPages(tp || 1);
-         setCurrentPage(0); // Reset to page 0 on chapter change/resize
-       }, 100);
-    }
-  }, [chapter.id, fontSize, fontFamily]);
+    applyTransform(0, true);
+  }, [currentPage, applyTransform]);
 
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      const el = document.getElementById('paginated-text-track');
-      if (el) {
-         setTotalPages(Math.ceil(el.scrollWidth / el.clientWidth));
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+  // Recalculate total pages — debounced with setTimeout
+  const recalcPages = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const tp = Math.ceil(el.scrollWidth / el.clientWidth) || 1;
+    setTotalPages(tp);
+    setCurrentPage(0);
   }, []);
 
-  const goNextPage = () => {
-    if (currentPage < totalPages - 1) {
-      setCurrentPage(p => p + 1);
-    } else if (currentChpNum < maxChpNum) {
-      handleNextChapter();
-    }
-  };
+  useEffect(() => {
+    const timer = setTimeout(recalcPages, 100);
+    return () => clearTimeout(timer);
+  }, [chapter.id, fontSize, fontFamily, recalcPages]);
 
-  const goPrevPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(p => p - 1);
-    } else if (currentChpNum > 1) {
-      handlePrevChapter();
-    }
-  };
+  // Debounced resize handler — fires at most once per 200 ms
+  useEffect(() => {
+    const handleResize = () => {
+      clearTimeout(resizeTimerRef.current);
+      resizeTimerRef.current = setTimeout(recalcPages, 200);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimerRef.current);
+    };
+  }, [recalcPages]);
 
-  // Click Zones
+  // Cleanup pending rAF on unmount
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+
+  const goNextPage = useCallback(() => {
+    setCurrentPage(p => {
+      if (p < totalPages - 1) return p + 1;
+      if (currentChpNum < maxChpNum) { handleNextChapter(); return p; }
+      return p;
+    });
+  }, [totalPages, currentChpNum, maxChpNum, handleNextChapter]);
+
+  const goPrevPage = useCallback(() => {
+    setCurrentPage(p => {
+      if (p > 0) return p - 1;
+      if (currentChpNum > 1) { handlePrevChapter(); return p; }
+      return p;
+    });
+  }, [currentChpNum, handlePrevChapter]);
+
+  // Click zones — only fires if pointer didn't move much (not a drag)
   const handleViewportClick = (e) => {
-    if (Math.abs(offsetX) > 10) return; // Ignore if user was dragging
+    if (Math.abs(offsetXRef.current) > 10) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    if (x < rect.width * 0.3) {
-      goPrevPage();
-    } else if (x > rect.width * 0.7) {
-      goNextPage();
-    }
+    if (x < rect.width * 0.3) goPrevPage();
+    else if (x > rect.width * 0.7) goNextPage();
   };
 
-  // Dragging Events
+  // Pointer events — NO state updates during drag, only ref mutations + rAF
   const handlePointerDown = (e) => {
-    setIsDragging(true);
-    setStartX(e.clientX || e.touches?.[0].clientX);
-    setOffsetX(0);
+    isDraggingRef.current = true;
+    startXRef.current = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    offsetXRef.current = 0;
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e) => {
-    if (!isDragging) return;
-    const currentX = e.clientX || e.touches?.[0].clientX;
-    setOffsetX(currentX - startX);
+    if (!isDraggingRef.current) return;
+    const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    offsetXRef.current = x - startXRef.current;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => applyTransform(offsetXRef.current, false));
   };
 
   const handlePointerUp = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    if (offsetX < -50) {
-      goNextPage();
-    } else if (offsetX > 50) {
-      goPrevPage();
-    }
-    setOffsetX(0);
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    const delta = offsetXRef.current;
+    offsetXRef.current = 0;
+
+    // Snap back or advance page — this is the only state update
+    if (delta < -50) goNextPage();
+    else if (delta > 50) goPrevPage();
+    else applyTransform(0, true); // snap back
   };
 
-  const currentStyles = {
-    fontFamily: fontFamily === 'serif' ? 'Georgia, "Times New Roman", serif' : 'Inter, system-ui, sans-serif'
+  const fontStyle = {
+    fontFamily: fontFamily === 'serif' ? 'Georgia, "Times New Roman", serif' : 'system-ui, sans-serif'
   };
 
   return (
     <main className="reader-content-area" style={{ padding: '0', overflow: 'hidden' }}>
-      <div 
+      <div
         className="reader-viewport"
-        style={{ 
-          height: 'calc(100vh - 120px)', 
-          width: '100%', 
-          overflow: 'hidden',
-          position: 'relative',
-          cursor: isDragging ? 'grabbing' : 'auto'
-        }}
+        style={{ height: 'calc(100vh - 120px)', width: '100%', overflow: 'hidden', position: 'relative', cursor: 'auto' }}
         onClick={handleViewportClick}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       >
-        <div 
-           id="paginated-text-track"
-           style={{
-             height: 'calc(100vh - 120px)', // Fixed height guarantees column flow!
-             width: '100%',
-             transform: `translateX(calc(-${currentPage * 100}vw + ${offsetX}px))`,
-             transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
-             columnWidth: '100%',
-             columnGap: '8vw',
-             columnFill: 'auto',
-             padding: '3rem 4vw', // 4vw matching the 8vw gap to total 100vw shifts
-             boxSizing: 'border-box'
-           }}
+        <div
+          ref={trackRef}
+          style={{
+            height: 'calc(100vh - 120px)',
+            width: '100%',
+            transform: `translateX(-${currentPage * 100}vw)`,
+            transition: 'none',
+            columnWidth: '100%',
+            columnGap: '8vw',
+            columnFill: 'auto',
+            padding: '3rem 4vw',
+            boxSizing: 'border-box'
+          }}
         >
-          <div style={currentStyles}>
-             <h1 className="chapter-title" style={{ marginTop: '0', fontSize: `${fontSize * 1.5}rem` }}>{chapter.title}</h1>
-             <div 
-               className="chapter-text paginated-content"
-               style={{ 
-                 fontSize: `${fontSize}rem`,
-                 lineHeight: 1.8,
-                 marginTop: '2rem'
-               }}
-               dangerouslySetInnerHTML={{ __html: chapter.content }}
-             />
+          <div style={fontStyle}>
+            <h1 className="chapter-title" style={{ marginTop: '0', fontSize: `${fontSize * 1.5}rem` }}>{chapter.title}</h1>
+            <div
+              className="chapter-text paginated-content"
+              style={{ fontSize: `${fontSize}rem`, lineHeight: 1.8, marginTop: '2rem' }}
+              dangerouslySetInnerHTML={{ __html: chapter.content }}
+            />
           </div>
         </div>
       </div>
 
       {/* Progress Footer */}
-      <div className="reader-footer" style={{ 
-          height: '60px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          padding: '0 2rem',
-          borderTop: '1px solid rgba(128,128,128,0.1)',
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '0.85rem',
-          opacity: 0.8
-        }}>
-        <div>{currentChpNum > 1 ? `Chapter ${currentChpNum-1} ←` : ''}</div>
-        <div style={{ fontWeight: 600 }}>
-           Chapter {currentChpNum} • Page {currentPage + 1} / {totalPages}
-        </div>
-        <div>{(currentChpNum < maxChpNum) ? `→ Chapter ${currentChpNum+1}` : ''}</div>
+      <div className="reader-footer" style={{
+        height: '60px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 2rem',
+        borderTop: '1px solid rgba(128,128,128,0.1)',
+        fontSize: '0.85rem',
+        opacity: 0.8
+      }}>
+        <div>{currentChpNum > 1 ? `Chapter ${currentChpNum - 1} ←` : ''}</div>
+        <div style={{ fontWeight: 600 }}>Chapter {currentChpNum} • Page {currentPage + 1} / {totalPages}</div>
+        <div>{currentChpNum < maxChpNum ? `→ Chapter ${currentChpNum + 1}` : ''}</div>
       </div>
     </main>
   );

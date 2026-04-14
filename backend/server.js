@@ -83,11 +83,18 @@ app.use((err, req, res, next) => {
 // Initialize database and start server
 try {
   initDatabase();
-  app.listen(PORT, () => {
-    console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📚 Library Book Reservation System - Backend API`);
-    console.log(`💾 Database: SQLite (file-based, no setup required)`);
-    console.log(`\nAPI Endpoints ready ✅`);
+  const server = app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n❌ Port ${PORT} is already in use.`);
+      console.error(`   Fix: lsof -ti:${PORT} | xargs kill -9\n`);
+    } else {
+      console.error('❌ Server error:', err.message);
+    }
+    process.exit(1);
   });
 } catch (error) {
   console.error('❌ Failed to start server:', error.message);

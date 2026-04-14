@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import CreatePassword from './pages/CreatePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
@@ -66,6 +67,14 @@ function AppRoutes() {
           isAuthenticated
             ? <Navigate to={isAdmin ? '/admin' : '/home'} replace />
             : <Register />
+        }
+      />
+      <Route
+        path="/create-password/:token"
+        element={
+          isAuthenticated
+            ? <Navigate to={isAdmin ? '/admin' : '/home'} replace />
+            : <CreatePassword />
         }
       />
       <Route

@@ -13,25 +13,22 @@ class User {
    */
   static findById(id) {
     return db.prepare(
-      'SELECT id, first_name, last_name, email, phone, role, created_at, updated_at FROM users WHERE id = ?'
+      'SELECT id, first_name, last_name, email, phone, birth_date, birth_place_country, birth_place_city, gender, address, role, created_at, updated_at FROM users WHERE id = ?'
     ).get(id) || null;
   }
 
   /**
    * Create a new user
    */
-  static create({ first_name, last_name, email, password, phone, role }) {
-    const result = db.prepare(
-      'INSERT INTO users (first_name, last_name, email, password, phone, role) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(first_name, last_name, email, password, phone || null, role || 'end_user');
+  static create({ first_name, last_name, email, password, phone, birth_date, birth_place_country, birth_place_city, gender, address, role }) {
+    const result = db.prepare(`
+      INSERT INTO users (first_name, last_name, email, password, phone, birth_date, birth_place_country, birth_place_city, gender, address, role)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(first_name, last_name, email, password || '', phone || null, birth_date || null, birth_place_country || null, birth_place_city || null, gender || null, address || null, role || 'end_user');
 
     return {
       id: result.lastInsertRowid,
-      first_name,
-      last_name,
-      email,
-      phone,
-      role: role || 'end_user'
+      first_name, last_name, email, phone, role: role || 'end_user'
     };
   }
 
@@ -39,7 +36,7 @@ class User {
    * Update user profile
    */
   static update(id, fields) {
-    const allowedFields = ['first_name', 'last_name', 'email', 'password', 'phone'];
+    const allowedFields = ['first_name', 'last_name', 'email', 'password', 'phone', 'birth_date', 'birth_place_country', 'birth_place_city', 'gender', 'address'];
     const updates = [];
     const values = [];
 

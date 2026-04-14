@@ -10,12 +10,24 @@ function initDatabase() {
       last_name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
+      birth_date TEXT DEFAULT NULL,
+      birth_place_country TEXT DEFAULT NULL,
+      birth_place_city TEXT DEFAULT NULL,
+      gender TEXT DEFAULT NULL,
+      address TEXT DEFAULT NULL,
       phone TEXT DEFAULT NULL,
       role TEXT NOT NULL DEFAULT 'end_user' CHECK(role IN ('system_admin', 'end_user')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration for existing databases (PBI-3)
+  try { db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT DEFAULT NULL'); } catch(e){}
+  try { db.exec('ALTER TABLE users ADD COLUMN birth_place_country TEXT DEFAULT NULL'); } catch(e){}
+  try { db.exec('ALTER TABLE users ADD COLUMN birth_place_city TEXT DEFAULT NULL'); } catch(e){}
+  try { db.exec('ALTER TABLE users ADD COLUMN gender TEXT DEFAULT NULL'); } catch(e){}
+  try { db.exec('ALTER TABLE users ADD COLUMN address TEXT DEFAULT NULL'); } catch(e){}
 
   // Create token blacklist table (for logout)
   db.exec(`

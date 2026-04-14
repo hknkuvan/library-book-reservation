@@ -2,10 +2,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
+const PasswordReset = require('../models/PasswordReset');
 const db = require('../config/db');
 
 /**
- * Register a new user
+ * Register a new user (PBI-3 Two-Step Flow)
  * POST /api/auth/register
  */
 const register = (req, res) => {
@@ -20,7 +21,11 @@ const register = (req, res) => {
       });
     }
 
-    const { first_name, last_name, email, password } = req.body;
+    const { 
+      first_name, last_name, email, 
+      birth_date, birth_place_country, birth_place_city, 
+      gender, address, phone 
+    } = req.body;
 
     // Check if email already exists
     const existingUser = User.findByEmail(email);
@@ -31,21 +36,29 @@ const register = (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = bcrypt.hashSync(password, 12);
-
-    // Create user with end_user role
+    // Create user with end_user role and no password
     const user = User.create({
-      first_name,
-      last_name,
-      email,
-      password: hashedPassword,
+      first_name, last_name, email,
+      birth_date, birth_place_country, birth_place_city,
+      gender, address, phone,
+      password: '', // Password will be set in step 2
       role: 'end_user'
     });
 
+    // Generate setup token (using password reset mechanism as per PBI-3 flow)
+    const token = PasswordReset.create(email);
+
+    // In a real app, this would send an email
+    const setupUrl = `http://localhost:5173/create-password/${token}`;
+    console.log(`\n📧 Registration Email Sent (Simulated):`);
+    console.log(`   To: ${email}`);
+    console.log(`   Setup URL: ${setupUrl}\n`);
+
     res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please login.',
+      message: 'Account created! A link to set your password has been sent to your email.',
+      setupUrl, // Demo purposes
+      token,
       user: {
         id: user.id,
         first_name: user.first_name,

@@ -11,6 +11,7 @@ router.get('/stats', ctrl.getReadingStats);                // Reading stats (mus
 router.get('/reviews/:bookId', ctrl.getBookReviews);       // Reviews for a book
 router.get('/', ctrl.getMyLibrary);                        // My library
 router.post('/', ctrl.addToLibrary);                       // Add to library
+router.post('/comment', ctrl.postComment);                // Add a comment (PBI-15)
 router.put('/:id', ctrl.updateUserBook);                   // Update status/review
 router.delete('/:id', ctrl.removeFromLibrary);             // Remove from library
 

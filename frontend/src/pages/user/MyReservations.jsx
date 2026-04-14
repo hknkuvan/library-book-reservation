@@ -37,6 +37,17 @@ export default function MyReservations() {
     }
   };
 
+  const handleCancel = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this reservation?')) return;
+    try {
+      await axios.delete(`${API}/reservations/${id}`, { headers });
+      success('Reservation cancelled successfully!');
+      fetchReservations();
+    } catch (e) {
+      error(e.response?.data?.message || 'Failed to cancel.');
+    }
+  };
+
   const getDaysLeft = (dueDate) => {
     const due = new Date(dueDate);
     const now = new Date();
@@ -103,8 +114,11 @@ export default function MyReservations() {
                             <button className="btn btn-primary btn-sm" onClick={() => handleReturn(r.id)}>
                               📥 Return
                             </button>
+                            <button className="btn btn-ghost btn-danger btn-sm" onClick={() => handleCancel(r.id)} style={{ color: 'var(--error-500)', border: '1px solid var(--error-400)' }}>
+                              ✖ Cancel
+                            </button>
                           </div>
-                        </div>
+                   </div>
                       );
                     })}
                   </div>

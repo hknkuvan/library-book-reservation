@@ -68,6 +68,22 @@ exports.updateUserBook = (req, res) => {
 };
 
 /**
+ * POST /api/user-books/comment — Add a comment to a book (PBI-15)
+ */
+exports.postComment = (req, res) => {
+  try {
+    const { book_id, comment } = req.body;
+    if (!book_id || !comment) return res.status(400).json({ success: false, message: 'book_id and comment are required.' });
+
+    const result = UserBook.addComment(req.user.id, book_id, comment);
+    res.json({ success: true, message: 'Comment posted!', userBook: result.userBook });
+  } catch (error) {
+    console.error('Post comment error:', error);
+    res.status(500).json({ success: false, message: 'Failed to post comment.' });
+  }
+};
+
+/**
  * DELETE /api/user-books/:id — Remove from library
  */
 exports.removeFromLibrary = (req, res) => {

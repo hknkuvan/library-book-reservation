@@ -43,6 +43,24 @@ class UserBook {
   }
 
   /**
+   * Add a generic comment (PBI-15) - Upserts a review record
+   */
+  static addComment(userId, bookId, comment) {
+    const existing = db.prepare('SELECT id FROM user_books WHERE user_id = ? AND book_id = ?').get(userId, bookId);
+    
+    if (existing) {
+      db.prepare('UPDATE user_books SET review = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(comment, existing.id);
+      return { success: true, userBook: UserBook.findById(existing.id) };
+    } else {
+      const stmt = db.prepare(`
+        INSERT INTO user_books (user_id, book_id, status, review) VALUES (?, ?, 'reading', ?)
+      `);
+      const result = stmt.run(userId, bookId, comment);
+      return { success: true, userBook: UserBook.findById(result.lastInsertRowid) };
+    }
+  }
+
+  /**
    * Remove from library
    */
   static removeFromLibrary(id, userId) {

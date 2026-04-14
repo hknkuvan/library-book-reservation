@@ -13,24 +13,38 @@ export default function BookDetailUser() {
   const [book, setBook] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newComment, setNewComment] = useState('');
   const { success, error } = useToast();
 
   const headers = { Authorization: `Bearer ${token}` };
 
+  const fetchData = async () => {
+    try {
+      const [bookRes, reviewRes] = await Promise.all([
+        axios.get(`${API}/books/${id}`, { headers }),
+        axios.get(`${API}/user-books/reviews/${id}`, { headers })
+      ]);
+      setBook(bookRes.data.book);
+      setReviews(reviewRes.data.reviews || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [bookRes, reviewRes] = await Promise.all([
-          axios.get(`${API}/books/${id}`, { headers }),
-          axios.get(`${API}/user-books/reviews/${id}`, { headers })
-        ]);
-        setBook(bookRes.data.book);
-        setReviews(reviewRes.data.reviews || []);
-      } catch (e) { console.error(e); }
-      setLoading(false);
-    };
     fetchData();
   }, [id]);
+
+  const handlePostComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      await axios.post(`${API}/user-books/comment`, { book_id: id, comment: newComment }, { headers });
+      success('Comment posted successfully!');
+      setNewComment('');
+      fetchData(); // Refresh reviews
+    } catch (e) {
+      error(e.response?.data?.message || 'Failed to post comment.');
+    }
+  };
 
   const handleBorrow = async () => {
     try {
@@ -125,20 +139,43 @@ export default function BookDetailUser() {
           </div>
 
 
-          {/* Reviews Section */}
           <div style={{ marginTop: '2rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>💬 Reviews ({reviews.length})</h3>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>💬 Reviews & Comments ({reviews.length})</h3>
+            
+            {/* Add Comment Section (PBI-15) */}
+            <div className="add-comment" style={{ marginBottom: '2rem', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
+              <h4 style={{ fontSize: '0.9rem', marginBottom: '0.8rem', color: 'var(--text-secondary)' }}>Add your comment:</h4>
+              <textarea 
+                className="form-input" 
+                placeholder="Share your thoughts about this book..." 
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                rows="3" 
+                style={{ resize: 'vertical', width: '100%', marginBottom: '1rem' }}
+              />
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={handlePostComment}
+                disabled={!newComment.trim()}
+              >
+                Post Comment
+              </button>
+            </div>
+
             {reviews.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)' }}>No reviews yet. Be the first to review!</p>
+              <p style={{ color: 'var(--text-muted)' }}>No reviews yet. Be the first to share your thoughts!</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {reviews.map((r, i) => (
-                  <div key={i} className="review-card">
+                  <div key={i} className="review-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <strong>{r.first_name} {r.last_name}</strong>
-                      <span className="star-display">{renderStars(r.rating)}</span>
+                      {r.rating > 0 && <span className="star-display" style={{ color: '#fbbf24' }}>{renderStars(r.rating)}</span>}
                     </div>
-                    <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>{r.review}</p>
+                    <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.95rem', lineHeight: 1.5 }}>{r.review}</p>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                      {new Date(r.updated_at).toLocaleDateString()}
+                    </div>
                   </div>
                 ))}
               </div>

@@ -13,6 +13,8 @@ export default function BrowseBooks() {
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const { success, error } = useToast();
 
@@ -20,11 +22,12 @@ export default function BrowseBooks() {
 
   const fetchBooks = async () => {
     try {
-      const params = {};
+      const params = { page, limit: 12 };
       if (search) params.search = search;
       if (category) params.category = category;
       const res = await axios.get(`${API}/books`, { headers, params });
       setBooks(res.data.books || []);
+      setPagination(res.data.pagination || { page: 1, totalPages: 1 });
     } catch (e) { console.error(e); }
     setLoading(false);
   };
@@ -34,7 +37,10 @@ export default function BrowseBooks() {
     axios.get(`${API}/books/categories`, { headers }).then(r => setCategories(r.data.categories || [])).catch(() => {});
   }, []);
 
-  useEffect(() => { fetchBooks(); }, [search, category]);
+  useEffect(() => { fetchBooks(); }, [search, category, page]);
+
+  // Reset to page 1 on search/category change
+  useEffect(() => { setPage(1); }, [search, category]);
 
   const handleBorrow = async (bookId) => {
     try {
@@ -86,43 +92,68 @@ export default function BrowseBooks() {
           ) : books.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No books found.</p>
           ) : (
-            <div className="book-grid">
-              {books.map(book => (
-                <div className="book-card" key={book.id} id={`book-card-${book.id}`}>
-                  <Link to={`/books/${book.id}`} className="book-card-cover" style={{ display: 'block', textDecoration: 'none' }}>
-                    {book.cover_image ? (
-                        <img src={book.cover_image} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                        <span>{book.title.charAt(0)}</span>
-                    )}
-                  </Link>
-                  <div className="book-card-body">
-                    <Link to={`/books/${book.id}`} className="book-card-title">{book.title}</Link>
-                    <p className="book-card-author">by {book.author}</p>
-                    {book.category && <span className="badge badge-category">{book.category}</span>}
-                    <div className="book-card-meta">
-                      {book.pages && <span>📄 {book.pages} pages</span>}
-                      <span className={book.available_copies > 0 ? 'text-success' : 'text-error'}>
-                        {book.available_copies > 0 ? `✅ ${book.available_copies} available` : '❌ Unavailable'}
-                      </span>
-                    </div>
-                    <div className="book-card-actions" style={{ flexWrap: 'wrap' }}>
-                      <Link to={`/read/${book.id}`} className="btn btn-sm" style={{ background: 'var(--primary-600)', color: 'white', border: 'none', textDecoration: 'none' }}>
-                        📖 Read
-                      </Link>
-                      {book.available_copies > 0 && (
-                        <button className="btn btn-outline btn-sm" onClick={() => handleBorrow(book.id)}>
-                          📥 Borrow
-                        </button>
+            <>
+              <div className="book-grid">
+                {books.map(book => (
+                  <div className="book-card" key={book.id} id={`book-card-${book.id}`}>
+                    <Link to={`/books/${book.id}`} className="book-card-cover" style={{ display: 'block', textDecoration: 'none' }}>
+                      {book.cover_image ? (
+                          <img src={book.cover_image} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                          <span>{book.title.charAt(0)}</span>
                       )}
-                      <button className="btn btn-outline btn-sm" onClick={() => handleAddToLibrary(book.id)}>
-                        ➕ My Library
-                      </button>
+                    </Link>
+                    <div className="book-card-body">
+                      <Link to={`/books/${book.id}`} className="book-card-title">{book.title}</Link>
+                      <p className="book-card-author">by {book.author}</p>
+                      {book.category && <span className="badge badge-category">{book.category}</span>}
+                      <div className="book-card-meta">
+                        {book.pages && <span>📄 {book.pages} pages</span>}
+                        <span className={book.available_copies > 0 ? 'text-success' : 'text-error'}>
+                          {book.available_copies > 0 ? `✅ ${book.available_copies} available` : '❌ Unavailable'}
+                        </span>
+                      </div>
+                      <div className="book-card-actions" style={{ flexWrap: 'wrap' }}>
+                        <Link to={`/read/${book.id}`} className="btn btn-sm" style={{ background: 'var(--primary-600)', color: 'white', border: 'none', textDecoration: 'none' }}>
+                          📖 Read
+                        </Link>
+                        {book.available_copies > 0 && (
+                          <button className="btn btn-outline btn-sm" onClick={() => handleBorrow(book.id)}>
+                            📥 Borrow
+                          </button>
+                        )}
+                        <button className="btn btn-outline btn-sm" onClick={() => handleAddToLibrary(book.id)}>
+                          ➕ My Library
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {/* Pagination UI */}
+              {pagination.totalPages > 1 && (
+                <div className="pagination-bar" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '2rem', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                  <button 
+                    className="btn btn-outline btn-sm" 
+                    disabled={page === 1} 
+                    onClick={() => setPage(page - 1)}
+                  >
+                    ← Previous
+                  </button>
+                  <span style={{ fontWeight: 600 }}>
+                    Page {page} of {pagination.totalPages}
+                  </span>
+                  <button 
+                    className="btn btn-outline btn-sm" 
+                    disabled={page === pagination.totalPages} 
+                    onClick={() => setPage(page + 1)}
+                  >
+                    Next →
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </main>

@@ -1,8 +1,42 @@
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
+import axios from 'axios';
+
+const API = 'http://localhost:5000/api';
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const [stats, setStats] = useState({ reservations: 0, library: 0, books: 0 });
+
+  useEffect(() => {
+    const headers = { Authorization: `Bearer ${token}` };
+    const fetchStats = async () => {
+      try {
+        const [resData, libData, booksData] = await Promise.all([
+          axios.get(`${API}/reservations/my`, { headers }).catch(() => ({ data: { reservations: [] } })),
+          axios.get(`${API}/user-books`, { headers }).catch(() => ({ data: { books: [] } })),
+          axios.get(`${API}/books`, { headers, params: { limit: 1 } }).catch(() => ({ data: { pagination: { total: 0 } } }))
+        ]);
+        setStats({
+          reservations: (resData.data.reservations || []).filter(r => r.status === 'active' || r.status === 'overdue').length,
+          library: (libData.data.books || []).length,
+          books: resData.data.reservations ? booksData.data.pagination?.total || 0 : 0
+        });
+      } catch (e) { /* ignore */ }
+    };
+    fetchStats();
+  }, [token]);
+
+  const cards = [
+    { id: 'search-books', icon: '🔍', title: 'Search Books', desc: 'Search our collection by title, author, or category.', to: '/books', color: 'rgba(99, 102, 241, 0.15)' },
+    { id: 'my-reservations', icon: '📋', title: 'My Reservations', desc: `You have ${stats.reservations} active reservation${stats.reservations !== 1 ? 's' : ''}.`, to: '/reservations', color: 'rgba(16, 185, 129, 0.15)' },
+    { id: 'personal-library', icon: '📖', title: 'Personal Library', desc: `${stats.library} book${stats.library !== 1 ? 's' : ''} in your library.`, to: '/my-library', color: 'rgba(245, 158, 11, 0.15)' },
+    { id: 'availability', icon: '✅', title: 'Book Availability', desc: 'Check if a book is available or currently borrowed.', to: '/books', color: 'rgba(139, 92, 246, 0.15)' },
+    { id: 'new-arrivals', icon: '✨', title: 'New Arrivals', desc: 'Discover the latest books added to our collection.', to: '/new-arrivals', color: 'rgba(236, 72, 153, 0.15)' },
+    { id: 'reading-stats', icon: '📊', title: 'Reading Stats', desc: 'View your reading statistics and track goals.', to: '/stats', color: 'rgba(6, 182, 212, 0.15)' },
+  ];
 
   return (
     <>
@@ -19,65 +53,16 @@ export default function Home() {
         </div>
 
         <div className="dashboard-grid">
-          <div className="dashboard-card" id="card-search-books">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(99, 102, 241, 0.15)' }}>
-              🔍
-            </div>
-            <h3 className="dashboard-card-title">Search Books</h3>
-            <p className="dashboard-card-desc">
-              Search our collection by title, author, or category. Find your next favorite book.
-            </p>
-          </div>
-
-          <div className="dashboard-card" id="card-my-reservations">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>
-              📋
-            </div>
-            <h3 className="dashboard-card-title">My Reservations</h3>
-            <p className="dashboard-card-desc">
-              View and manage your current book reservations and borrowing history.
-            </p>
-          </div>
-
-          <div className="dashboard-card" id="card-personal-library">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
-              📖
-            </div>
-            <h3 className="dashboard-card-title">Personal Library</h3>
-            <p className="dashboard-card-desc">
-              Track books you've read, create reading lists, and write reviews.
-            </p>
-          </div>
-
-          <div className="dashboard-card" id="card-availability">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>
-              ✅
-            </div>
-            <h3 className="dashboard-card-title">Book Availability</h3>
-            <p className="dashboard-card-desc">
-              Check if a book is available or currently borrowed by another member.
-            </p>
-          </div>
-
-          <div className="dashboard-card" id="card-new-arrivals">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(236, 72, 153, 0.15)' }}>
-              ✨
-            </div>
-            <h3 className="dashboard-card-title">New Arrivals</h3>
-            <p className="dashboard-card-desc">
-              Discover the latest books added to our library collection.
-            </p>
-          </div>
-
-          <div className="dashboard-card" id="card-reading-stats">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(6, 182, 212, 0.15)' }}>
-              📊
-            </div>
-            <h3 className="dashboard-card-title">Reading Stats</h3>
-            <p className="dashboard-card-desc">
-              View your reading statistics and track your annual reading goals.
-            </p>
-          </div>
+          {cards.map(card => (
+            <Link to={card.to} className="dashboard-card" id={`card-${card.id}`} key={card.id}
+              style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="dashboard-card-icon" style={{ background: card.color }}>
+                {card.icon}
+              </div>
+              <h3 className="dashboard-card-title">{card.title}</h3>
+              <p className="dashboard-card-desc">{card.desc}</p>
+            </Link>
+          ))}
         </div>
       </main>
     </>

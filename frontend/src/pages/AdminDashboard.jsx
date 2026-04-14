@@ -1,9 +1,30 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
+import axios from 'axios';
+
+const API = 'http://localhost:5000/api';
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    const headers = { Authorization: `Bearer ${token}` };
+    axios.get(`${API}/admin/stats`, { headers })
+      .then(res => setStats(res.data.stats))
+      .catch(() => {});
+  }, [token]);
+
+  const cards = [
+    { id: 'manage-books', icon: '📚', title: 'Manage Books', desc: `${stats?.totalBooks || '...'} books in catalog.`, to: '/admin/books', color: 'rgba(99, 102, 241, 0.15)' },
+    { id: 'manage-users', icon: '👥', title: 'Manage Users', desc: `${stats?.totalUsers || '...'} registered members.`, to: '/admin/users', color: 'rgba(16, 185, 129, 0.15)' },
+    { id: 'reservations', icon: '📋', title: 'Reservations', desc: `${stats?.activeRes || 0} active, ${stats?.overdueRes || 0} overdue.`, to: '/admin/reservations', color: 'rgba(245, 158, 11, 0.15)' },
+    { id: 'reports', icon: '📊', title: 'Reports', desc: `${stats?.totalRes || 0} total reservations processed.`, to: '/admin/stats', color: 'rgba(139, 92, 246, 0.15)' },
+    { id: 'settings', icon: '⚙️', title: 'System Settings', desc: 'Configure library policies and settings.', to: '/admin', color: 'rgba(236, 72, 153, 0.15)' },
+    { id: 'availability', icon: '📦', title: 'Book Availability', desc: `${stats?.recentBooks || 0} new books in last 30 days.`, to: '/admin/books', color: 'rgba(6, 182, 212, 0.15)' },
+  ];
 
   return (
     <>
@@ -18,41 +39,16 @@ export default function AdminDashboard() {
         </div>
 
         <div className="dashboard-grid">
-          <Link to="/admin/books" className="dashboard-card" id="admin-card-manage-books" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div className="dashboard-card-icon" style={{ background: 'rgba(99, 102, 241, 0.15)' }}>📚</div>
-            <h3 className="dashboard-card-title">Manage Books</h3>
-            <p className="dashboard-card-desc">Add, update, or remove books from the library catalog.</p>
-          </Link>
-
-          <div className="dashboard-card" id="admin-card-manage-users">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>👥</div>
-            <h3 className="dashboard-card-title">Manage Users</h3>
-            <p className="dashboard-card-desc">View and manage library member accounts and their profiles.</p>
-          </div>
-
-          <div className="dashboard-card" id="admin-card-reservations">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>📋</div>
-            <h3 className="dashboard-card-title">Reservations</h3>
-            <p className="dashboard-card-desc">View all active borrowing and reservation records in the system.</p>
-          </div>
-
-          <div className="dashboard-card" id="admin-card-reports">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>📊</div>
-            <h3 className="dashboard-card-title">Reports</h3>
-            <p className="dashboard-card-desc">View borrowing and reservation reports with analytics and insights.</p>
-          </div>
-
-          <div className="dashboard-card" id="admin-card-properties">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(236, 72, 153, 0.15)' }}>⚙️</div>
-            <h3 className="dashboard-card-title">System Settings</h3>
-            <p className="dashboard-card-desc">Configure library policies, borrowing limits, and notification settings.</p>
-          </div>
-
-          <div className="dashboard-card" id="admin-card-availability">
-            <div className="dashboard-card-icon" style={{ background: 'rgba(6, 182, 212, 0.15)' }}>📦</div>
-            <h3 className="dashboard-card-title">Book Availability</h3>
-            <p className="dashboard-card-desc">Monitor book availability status and manage inventory tracking.</p>
-          </div>
+          {cards.map(card => (
+            <Link to={card.to} className="dashboard-card" id={`admin-card-${card.id}`} key={card.id}
+              style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="dashboard-card-icon" style={{ background: card.color }}>
+                {card.icon}
+              </div>
+              <h3 className="dashboard-card-title">{card.title}</h3>
+              <p className="dashboard-card-desc">{card.desc}</p>
+            </Link>
+          ))}
         </div>
       </main>
     </>

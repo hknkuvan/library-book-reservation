@@ -77,7 +77,7 @@ export default function BookList() {
     <>
       <Header />
       <main className="page-content" id="book-list-page">
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ width: '100%', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>📚 Book Management</h1>
@@ -163,7 +163,15 @@ export default function BookList() {
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <Link
+                              to={`/read/${book.id}`}
+                              className="btn btn-sm"
+                              style={{ background: 'var(--primary-600)', color: 'white', border: 'none' }}
+                              id={`btn-read-${book.id}`}
+                            >
+                              📖 Read
+                            </Link>
                             <Link
                               to={`/admin/books/${book.id}`}
                               className="btn btn-sm btn-outline"

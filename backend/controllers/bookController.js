@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const Book = require('../models/Book');
+const Chapter = require('../models/Chapter');
 
 /**
  * Create a new book (Admin only)
@@ -215,11 +216,42 @@ const getCategories = (req, res) => {
   }
 };
 
+/**
+ * Get all chapters for a book
+ * GET /api/books/:id/chapters
+ */
+const getChapters = (req, res) => {
+  try {
+    const chapters = Chapter.findByBook(req.params.id);
+    res.json({ success: true, chapters });
+  } catch (error) {
+    console.error('Get chapters error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch chapters.' });
+  }
+};
+
+/**
+ * Get specific chapter content
+ * GET /api/books/:id/chapters/:chapterNumber
+ */
+const getChapterByNumber = (req, res) => {
+  try {
+    const chapter = Chapter.findByNumber(req.params.id, req.params.chapterNumber);
+    if (!chapter) return res.status(404).json({ success: false, message: 'Chapter not found.' });
+    res.json({ success: true, chapter });
+  } catch (error) {
+    console.error('Get chapter error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch chapter content.' });
+  }
+};
+
 module.exports = {
   createBook,
   getAllBooks,
   getBookById,
   updateBook,
   deleteBook,
-  getCategories
+  getCategories,
+  getChapters,
+  getChapterByNumber
 };

@@ -141,7 +141,10 @@ export default function BookDetail() {
           </div>
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+            <Link to={`/read/${book.id}`} className="btn btn-block" style={{ background: 'var(--primary-600)', color: 'white', textDecoration: 'none', textAlign: 'center' }}>
+              📖 Read Book
+            </Link>
             <Link to={`/admin/books/${book.id}/edit`} className="btn btn-primary btn-block" id="btn-edit-book" style={{ textDecoration: 'none', textAlign: 'center' }}>
               ✏️ Edit Book
             </Link>

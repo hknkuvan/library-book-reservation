@@ -8,13 +8,17 @@ const {
   getBookById,
   updateBook,
   deleteBook,
-  getCategories
+  getCategories,
+  getChapters,
+  getChapterByNumber
 } = require('../controllers/bookController');
 
 // Public routes (all authenticated users can view books)
 router.get('/categories', authenticate, getCategories);
 router.get('/', authenticate, getAllBooks);
 router.get('/:id', authenticate, getBookById);
+router.get('/:id/chapters', authenticate, getChapters);
+router.get('/:id/chapters/:chapterNumber', authenticate, getChapterByNumber);
 
 // Admin-only routes
 router.post('/', authenticate, requireAdmin, bookValidation, createBook);

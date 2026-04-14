@@ -58,6 +58,52 @@ function initDatabase() {
     )
   `);
 
+  // Create reservations table (Sprint 3 - Book Borrowing)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      book_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'returned', 'overdue')),
+      borrowed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      due_date TEXT NOT NULL,
+      returned_at DATETIME DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (book_id) REFERENCES books(id)
+    )
+  `);
+
+  // Create user_books table (Sprint 3 - Personal Library)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_books (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      book_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'want_to_read' CHECK(status IN ('want_to_read', 'reading', 'read')),
+      rating INTEGER DEFAULT NULL CHECK(rating >= 1 AND rating <= 5),
+      review TEXT DEFAULT NULL,
+      added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (book_id) REFERENCES books(id),
+      UNIQUE(user_id, book_id)
+    )
+  `);
+
+  // Create chapters table (Sprint 4 - E-Reader)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chapters (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER NOT NULL,
+      chapter_number INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      FOREIGN KEY (book_id) REFERENCES books(id),
+      UNIQUE(book_id, chapter_number)
+    )
+  `);
+
   // Create indexes
   db.exec(`CREATE INDEX IF NOT EXISTS idx_token ON token_blacklist(token)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_expires ON token_blacklist(expires_at)`);
@@ -65,6 +111,11 @@ function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_books_category ON books(category)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_books_author ON books(author)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reservations_user ON reservations(user_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reservations_book ON reservations(book_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations(status)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_user_books_user ON user_books(user_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_user_books_book ON user_books(book_id)`);
 
   // Seed admin user if not exists
   const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@library.com');
@@ -104,6 +155,33 @@ function initDatabase() {
       insert.run(book.title, book.author, book.category, book.isbn, book.publication_date, book.pages, book.description, book.available_copies, book.total_copies);
     }
     console.log(`✅ ${sampleBooks.length} sample books seeded.`);
+  }
+
+  // Seed sample chapters if table is empty
+  const chapterCount = db.prepare('SELECT COUNT(*) as count FROM chapters').get();
+  if (chapterCount.count === 0) {
+    // Find The Great Gatsby and 1984
+    const gatsby = db.prepare('SELECT id FROM books WHERE title = ?').get('The Great Gatsby');
+    const orwell = db.prepare('SELECT id FROM books WHERE title = ?').get('1984');
+
+    const insertChapter = db.prepare(`
+      INSERT INTO chapters (book_id, chapter_number, title, content)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    if (gatsby) {
+      insertChapter.run(gatsby.id, 1, 'Chapter 1', '<p>In my younger and more vulnerable years my father gave me some advice that I’ve been turning over in my mind ever since.</p><p>"Whenever you feel like criticizing any one," he told me, "just remember that all the people in this world haven’t had the advantages that you’ve had."</p><p>He didn’t say any more, but we’ve always been unusually communicative in a reserved way, and I understood that he meant a great deal more than that. In consequence, I’m inclined to reserve all judgments, a habit that has opened up many curious natures to me and also made me the victim of not a few veteran bores...</p><p>And so with the sunshine and the great bursts of leaves growing on the trees, just as things grow in fast movies, I had that familiar conviction that life was beginning over again with the summer.</p>');
+      
+      insertChapter.run(gatsby.id, 2, 'Chapter 2', '<p>About half way between West Egg and New York the motor road hastily joins the railroad and runs beside it for a quarter of a mile, so as to shrink away from a certain desolate area of land. This is a valley of ashes—a fantastic farm where ashes grow like wheat into ridges and hills and grotesque gardens; where ashes take the forms of houses and chimneys and rising smoke and, finally, with a transcendent effort, of men who move dimly and already crumbling through the powdery air.</p><p>Occasionally a line of gray cars crawls along an invisible track, gives out a ghastly creak, and comes to rest, and immediately the ash-gray men swarm up with leaden spades and stir up an impenetrable cloud, which screens their obscure operations from your sight.</p>');
+    }
+
+    if (orwell) {
+      insertChapter.run(orwell.id, 1, 'Part 1, Chapter 1', '<p>It was a bright cold day in April, and the clocks were striking thirteen. Winston Smith, his chin nuzzled into his breast in an effort to escape the vile wind, slipped quickly through the glass doors of Victory Mansions, though not quickly enough to prevent a swirl of gritty dust from entering along with him.</p><p>The hallway smelt of boiled cabbage and old rag mats. At one end of it a coloured poster, too large for indoor display, had been tacked to the wall. It depicted simply an enormous face, more than a metre wide: the face of a man of about forty-five, with a heavy black moustache and ruggedly handsome features.</p><p>Winston made for the stairs. It was no use trying the lift. Even at the best of times it was seldom working, and at present the electric current was cut off during daylight hours. It was part of the economy drive in preparation for Hate Week...</p>');
+
+      insertChapter.run(orwell.id, 2, 'Part 1, Chapter 2', '<p>As he put his hand to the door-knob Winston saw that he had left the diary open on the table. DOWN WITH BIG BROTHER was written all over it, in letters almost big enough to be legible across the room. It was an inconceivably stupid thing to have done. But, he realized, even in his panic he had not wanted to smudge the creamy paper by shutting the book while the ink was wet.</p><p>He drew in his breath and opened the door. Instantly a warm wave of relief flowed through him. A colourless, crushed-looking woman, with wispy hair and a lined face, was standing outside.</p><p>"Oh, comrade," she said in a dreary, whining sort of voice, "I thought I heard you come in. Do you think you could come across and have a look at our kitchen sink? It’s blocked up and..."</p>');
+    }
+    
+    console.log('✅ Sample chapters seeded for testing the E-Reader.');
   }
 
   console.log('✅ Database initialized successfully (SQLite).');

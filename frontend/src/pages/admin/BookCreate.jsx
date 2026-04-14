@@ -80,7 +80,7 @@ export default function BookCreate() {
     <>
       <Header />
       <main className="page-content" id="book-create-page">
-        <div className="card card-wide" style={{ maxWidth: '700px', margin: '0 auto', animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ maxWidth: '700px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '2.5rem' }}>📖</span>
           </div>

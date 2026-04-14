@@ -84,7 +84,7 @@ export default function PersonalLibrary() {
 
         {/* Removing old msg bar in favor of global toast component */}
 
-        <div className="card card-wide" style={{ animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ }}>
           <div className="tab-bar">
             {tabs.map(t => (
               <button key={t.key} className={`tab-btn ${tab === t.key ? 'active' : ''}`}

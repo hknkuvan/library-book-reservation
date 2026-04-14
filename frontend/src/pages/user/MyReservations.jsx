@@ -59,7 +59,7 @@ export default function MyReservations() {
 
         {/* Removing local msg alert to use global toast */}
 
-        <div className="card card-wide" style={{ animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide">
           <div className="tab-bar">
             {['all', 'active', 'returned'].map(f => (
               <button key={f} className={`tab-btn ${filter === f ? 'active' : ''}`}

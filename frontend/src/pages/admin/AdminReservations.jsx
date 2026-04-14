@@ -54,7 +54,7 @@ export default function AdminReservations() {
         </div>
 
         {stats && (
-          <div className="stats-grid small" style={{ marginBottom: '1.5rem', animation: 'cardSlideUp 0.3s ease-out' }}>
+          <div className="stats-grid small" style={{ marginBottom: '1.5rem' }}>
             <div className="stat-card mini"><div className="stat-value">{stats.total}</div><div className="stat-label">Total</div></div>
             <div className="stat-card mini"><div className="stat-value text-success">{stats.active}</div><div className="stat-label">Active</div></div>
             <div className="stat-card mini"><div className="stat-value text-error">{stats.overdue}</div><div className="stat-label">Overdue</div></div>
@@ -64,7 +64,7 @@ export default function AdminReservations() {
 
         {msg && <div className={`alert ${msg.startsWith('✅') ? 'alert-success' : 'alert-error'}`} style={{ maxWidth: '1100px', margin: '0 auto 1rem' }}>{msg}</div>}
 
-        <div className="card card-wide" style={{ animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ }}>
           <div className="filter-bar">
             <input type="text" className="form-input" placeholder="Search user or book..."
               value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 2 }} />

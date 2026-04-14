@@ -56,7 +56,7 @@ export default function ReadingStats() {
         </div>
 
         {/* Stats Cards */}
-        <div className="stats-grid" style={{ animation: 'cardSlideUp 0.4s ease-out' }}>
+        <div className="stats-grid" style={{ }}>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>📚</div>
             <div className="stat-value">{stats.totalRead}</div>
@@ -90,7 +90,7 @@ export default function ReadingStats() {
         </div>
 
         {/* Monthly Chart */}
-        <div className="card card-wide" style={{ marginTop: '1.5rem', animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ marginTop: '1.5rem' }}>
           <h3 style={{ marginBottom: '1rem' }}>📈 Monthly Reading ({new Date().getFullYear()})</h3>
           <div className="bar-chart">
             {monthlyData.map((count, i) => (
@@ -110,7 +110,7 @@ export default function ReadingStats() {
 
         {/* Category Distribution */}
         {stats.categories && stats.categories.length > 0 && (
-          <div className="card card-wide" style={{ marginTop: '1.5rem', animation: 'cardSlideUp 0.6s ease-out' }}>
+          <div className="card card-wide" style={{ marginTop: '1.5rem' }}>
             <h3 style={{ marginBottom: '1rem' }}>🏷️ Categories Read</h3>
             <div className="category-bars">
               {stats.categories.map((cat, i) => (
@@ -130,7 +130,7 @@ export default function ReadingStats() {
 
         {/* Recent Reads */}
         {stats.recentReads && stats.recentReads.length > 0 && (
-          <div className="card card-wide" style={{ marginTop: '1.5rem', animation: 'cardSlideUp 0.7s ease-out' }}>
+          <div className="card card-wide" style={{ marginTop: '1.5rem' }}>
             <h3 style={{ marginBottom: '1rem' }}>📖 Recently Read</h3>
             <div className="reservation-list">
               {stats.recentReads.map((book, i) => (

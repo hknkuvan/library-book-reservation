@@ -70,7 +70,7 @@ export default function NewArrivals() {
           <p className="welcome-subtitle">Discover the latest additions to our library</p>
         </div>
 
-        <div className="card card-wide" style={{ animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '3rem' }}><div className="spinner" style={{ margin: '0 auto' }}></div></div>
           ) : books.length === 0 ? (

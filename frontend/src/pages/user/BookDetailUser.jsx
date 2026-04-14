@@ -73,7 +73,7 @@ export default function BookDetailUser() {
     <>
       <Header />
       <main className="page-content" id="book-detail-user-page">
-        <div className="card card-wide" style={{ maxWidth: '800px', margin: '0 auto', animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ maxWidth: '800px', margin: '0 auto' }}>
           <Link to="/books" style={{ color: 'var(--primary-400)', textDecoration: 'none', fontSize: '0.9rem' }}>
             ← Back to Browse
           </Link>

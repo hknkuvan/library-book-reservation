@@ -140,7 +140,7 @@ export default function Profile() {
     <>
       <Header />
       <main className="page-content" id="profile-page">
-        <div className="card card-wide" style={{ maxWidth: '600px', margin: '0 auto', animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ maxWidth: '600px', margin: '0 auto' }}>
           {/* Profile Header */}
           <div className="profile-header">
             <div className="profile-avatar">{getInitials()}</div>

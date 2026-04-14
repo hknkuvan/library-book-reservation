@@ -57,7 +57,7 @@ export default function AdminStats() {
           <p className="welcome-subtitle">Library analytics overview</p>
         </div>
 
-        <div className="stats-grid" style={{ animation: 'cardSlideUp 0.4s ease-out' }}>
+        <div className="stats-grid" style={{ }}>
           {cards.map((c, i) => (
             <div className="stat-card" key={i}>
               <div className="stat-icon" style={{ background: c.color }}>{c.icon}</div>
@@ -67,7 +67,7 @@ export default function AdminStats() {
           ))}
         </div>
 
-        <div className="card card-wide" style={{ marginTop: '1.5rem', animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ marginTop: '1.5rem' }}>
           <h3>📈 System Overview</h3>
           <div className="detail-grid" style={{ marginTop: '1rem' }}>
             <div className="detail-item">

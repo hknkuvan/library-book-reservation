@@ -82,7 +82,7 @@ export default function BookDetail() {
     <>
       <Header />
       <main className="page-content" id="book-detail-page">
-        <div className="card card-wide" style={{ maxWidth: '700px', margin: '0 auto', animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ maxWidth: '700px', margin: '0 auto' }}>
           {/* Back Link */}
           <Link to="/admin/books" style={{ color: 'var(--primary-400)', textDecoration: 'none', fontSize: '0.9rem', display: 'inline-block', marginBottom: '1.5rem' }}>
             ← Back to Book List

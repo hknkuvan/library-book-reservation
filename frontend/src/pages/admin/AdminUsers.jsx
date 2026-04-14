@@ -40,7 +40,7 @@ export default function AdminUsers() {
           <p className="welcome-subtitle">View and manage library members</p>
         </div>
 
-        <div className="card card-wide" style={{ animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ }}>
           <div className="filter-bar">
             <input type="text" className="form-input" placeholder="Search by name or email..."
               value={search} onChange={(e) => setSearch(e.target.value)} id="user-search" />

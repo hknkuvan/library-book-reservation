@@ -120,7 +120,7 @@ export default function BookEdit() {
     <>
       <Header />
       <main className="page-content" id="book-edit-page">
-        <div className="card card-wide" style={{ maxWidth: '700px', margin: '0 auto', animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ maxWidth: '700px', margin: '0 auto' }}>
           <Link to={`/admin/books/${id}`} style={{ color: 'var(--primary-400)', textDecoration: 'none', fontSize: '0.9rem', display: 'inline-block', marginBottom: '1rem' }}>
             ← Back to Book Details
           </Link>

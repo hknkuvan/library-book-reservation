@@ -65,7 +65,7 @@ export default function BrowseBooks() {
           <p className="welcome-subtitle">Discover and borrow from our collection</p>
         </div>
 
-        <div className="card card-wide" style={{ animation: 'cardSlideUp 0.5s ease-out' }}>
+        <div className="card card-wide" style={{ }}>
           <div className="filter-bar">
             <input
               type="text" className="form-input" placeholder="Search by title, author, or ISBN..."

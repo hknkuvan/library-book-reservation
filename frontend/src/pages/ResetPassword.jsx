@@ -112,9 +112,9 @@ export default function ResetPassword() {
         <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '2.5rem' }}>🔐</span>
         </div>
-        <h1 className="card-title" style={{ textAlign: 'center' }}>Reset Password</h1>
+        <h1 className="card-title" style={{ textAlign: 'center' }}>Set Your Password</h1>
         <p className="card-subtitle" style={{ textAlign: 'center' }}>
-          Enter your new password below.
+          Enter your password below to complete your registration.
         </p>
 
         {serverError && (

@@ -9,13 +9,30 @@ function initDatabase() {
       first_name TEXT NOT NULL,
       last_name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
+      password TEXT DEFAULT NULL,
       phone TEXT DEFAULT NULL,
+      birth_date TEXT DEFAULT NULL,
+      birth_country TEXT DEFAULT NULL,
+      birth_city TEXT DEFAULT NULL,
+      gender TEXT DEFAULT NULL,
+      address TEXT DEFAULT NULL,
       role TEXT NOT NULL DEFAULT 'end_user' CHECK(role IN ('system_admin', 'end_user')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migrate existing DB: add columns if they don't exist yet
+  const newColumns = [
+    ['birth_date',    'TEXT DEFAULT NULL'],
+    ['birth_country', 'TEXT DEFAULT NULL'],
+    ['birth_city',    'TEXT DEFAULT NULL'],
+    ['gender',        'TEXT DEFAULT NULL'],
+    ['address',       'TEXT DEFAULT NULL'],
+  ];
+  for (const [col, def] of newColumns) {
+    try { db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`); } catch (_) { /* already exists */ }
+  }
 
   // Create token blacklist table (for logout)
   db.exec(`

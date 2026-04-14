@@ -2,15 +2,16 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
+const PasswordReset = require('../models/PasswordReset');
 const db = require('../config/db');
 
 /**
  * Register a new user
  * POST /api/auth/register
+ * No password in form — user receives an email link to set their password.
  */
 const register = (req, res) => {
   try {
-    // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -20,7 +21,7 @@ const register = (req, res) => {
       });
     }
 
-    const { first_name, last_name, email, password } = req.body;
+    const { first_name, last_name, email, phone, birth_date, birth_country, birth_city, gender, address } = req.body;
 
     // Check if email already exists
     const existingUser = User.findByEmail(email);
@@ -31,28 +32,29 @@ const register = (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = bcrypt.hashSync(password, 12);
-
-    // Create user with end_user role
+    // Create user with end_user role — password is NULL until set via link
     const user = User.create({
-      first_name,
-      last_name,
-      email,
-      password: hashedPassword,
+      first_name, last_name, email,
+      password: null,
+      phone: phone || null,
+      birth_date, birth_country, birth_city, gender,
+      address: address || null,
       role: 'end_user'
     });
 
+    // Generate a set-password token (reuses the password_resets table)
+    const token = PasswordReset.create(email);
+    const setPasswordUrl = `http://localhost:5173/reset-password?token=${token}`;
+
+    console.log(`\n📧 New Registration - Set Password Link:`);
+    console.log(`   User: ${first_name} ${last_name} <${email}>`);
+    console.log(`   Set Password URL: ${setPasswordUrl}\n`);
+
     res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please login.',
-      user: {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        role: user.role
-      }
+      message: 'Account created successfully. Please check your email to set your password.',
+      // Included for demo — remove in production
+      setPasswordUrl
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -87,6 +89,14 @@ const login = (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password.'
+      });
+    }
+
+    // Check if user has set a password yet (new registrations start with null)
+    if (!user.password) {
+      return res.status(401).json({
+        success: false,
+        message: 'Password not set. Please check your email for the link to create your password.'
       });
     }
 

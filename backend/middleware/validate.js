@@ -6,41 +6,49 @@ const { body } = require('express-validator');
 const registerValidation = [
   body('first_name')
     .trim()
-    .notEmpty()
-    .withMessage('First name is required.')
-    .isLength({ min: 2, max: 100 })
-    .withMessage('First name must be between 2 and 100 characters.'),
-  
+    .notEmpty().withMessage('First name is required.')
+    .isLength({ min: 2, max: 100 }).withMessage('First name must be between 2 and 100 characters.'),
+
   body('last_name')
     .trim()
-    .notEmpty()
-    .withMessage('Last name is required.')
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Last name must be between 2 and 100 characters.'),
-  
+    .notEmpty().withMessage('Last name is required.')
+    .isLength({ min: 2, max: 100 }).withMessage('Last name must be between 2 and 100 characters.'),
+
+  body('birth_date')
+    .trim()
+    .notEmpty().withMessage('Birth date is required.')
+    .isDate().withMessage('Please provide a valid birth date (YYYY-MM-DD).'),
+
+  body('birth_country')
+    .trim()
+    .notEmpty().withMessage('Birth country is required.')
+    .isLength({ min: 2, max: 100 }).withMessage('Birth country must be between 2 and 100 characters.'),
+
+  body('birth_city')
+    .trim()
+    .notEmpty().withMessage('Birth city is required.')
+    .isLength({ min: 2, max: 100 }).withMessage('Birth city must be between 2 and 100 characters.'),
+
+  body('gender')
+    .trim()
+    .notEmpty().withMessage('Gender is required.')
+    .isIn(['male', 'female', 'other', 'prefer_not_to_say']).withMessage('Please select a valid gender option.'),
+
   body('email')
     .trim()
-    .notEmpty()
-    .withMessage('Email is required.')
-    .isEmail()
-    .withMessage('Please provide a valid email address.')
+    .notEmpty().withMessage('Email is required.')
+    .isEmail().withMessage('Please provide a valid email address.')
     .normalizeEmail(),
-  
-  body('password')
-    .notEmpty()
-    .withMessage('Password is required.')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long.'),
-  
-  body('confirm_password')
-    .notEmpty()
-    .withMessage('Password confirmation is required.')
-    .custom((value, { req }) => {
-      if (value !== req.body.password) {
-        throw new Error('Passwords do not match.');
-      }
-      return true;
-    })
+
+  body('phone')
+    .optional({ checkFalsy: true })
+    .trim()
+    .matches(/^[+]?[\d\s()-]{7,20}$/).withMessage('Please provide a valid phone number.'),
+
+  body('address')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 }).withMessage('Address must be less than 500 characters.'),
 ];
 
 /**

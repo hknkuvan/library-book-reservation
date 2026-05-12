@@ -16,6 +16,7 @@ import BookEdit from './pages/admin/BookEdit';
 import AdminReservations from './pages/admin/AdminReservations';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminStats from './pages/admin/AdminStats';
+import AdminPendingSubmissions from './pages/admin/AdminPendingSubmissions';
 // User pages
 import BrowseBooks from './pages/user/BrowseBooks';
 import BookDetailUser from './pages/user/BookDetailUser';
@@ -24,6 +25,7 @@ import PersonalLibrary from './pages/user/PersonalLibrary';
 import NewArrivals from './pages/user/NewArrivals';
 import ReadingStats from './pages/user/ReadingStats';
 import EReader from './pages/user/EReader';
+import SubmitBook from './pages/user/SubmitBook';
 
 function AppRoutes() {
   const { isAuthenticated, isAdmin, loading } = useAuth();
@@ -96,6 +98,7 @@ function AppRoutes() {
       <Route path="/stats" element={<ProtectedRoute><ReadingStats /></ProtectedRoute>} />
       <Route path="/read/:id" element={<ProtectedRoute><EReader /></ProtectedRoute>} />
       <Route path="/read/:id/:chapterNumber" element={<ProtectedRoute><EReader /></ProtectedRoute>} />
+      <Route path="/submit-book" element={<ProtectedRoute><SubmitBook /></ProtectedRoute>} />
 
       {/* Protected routes - Admin */}
       <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
@@ -106,6 +109,7 @@ function AppRoutes() {
       <Route path="/admin/reservations" element={<ProtectedRoute requireAdmin><AdminReservations /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
       <Route path="/admin/stats" element={<ProtectedRoute requireAdmin><AdminStats /></ProtectedRoute>} />
+      <Route path="/admin/submissions" element={<ProtectedRoute requireAdmin><AdminPendingSubmissions /></ProtectedRoute>} />
 
       {/* Default redirect */}
       <Route path="*" element={<Navigate to="/login" replace />} />

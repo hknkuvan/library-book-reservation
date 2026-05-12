@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import Header from '../../components/Header';
 import Modal from '../../components/Modal';
 import axios from 'axios';
@@ -9,14 +10,16 @@ const API_URL = 'http://localhost:5000/api/books';
 
 export default function BookList() {
   const { token } = useAuth();
+  const { success, error } = useToast();
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [categories, setCategories] = useState([]);
   const [deleteModal, setDeleteModal] = useState({ open: false, book: null });
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
+  const [archiveModal, setArchiveModal] = useState({ open: false, book: null });
+  const [actionLoading, setActionLoading] = useState(false);
 
   const api = axios.create({
     baseURL: API_URL,
@@ -29,6 +32,7 @@ export default function BookList() {
       const params = {};
       if (search) params.search = search;
       if (category) params.category = category;
+      if (statusFilter) params.status = statusFilter;
       const res = await api.get('/', { params });
       setBooks(res.data.books || []);
     } catch (err) {
@@ -42,35 +46,61 @@ export default function BookList() {
     try {
       const res = await api.get('/categories');
       setCategories(res.data.categories || []);
-    } catch (err) {
-      console.error('Failed to fetch categories:', err);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  useEffect(() => {
-    fetchBooks();
-    fetchCategories();
-  }, []);
-
+  useEffect(() => { fetchBooks(); fetchCategories(); }, []);
   useEffect(() => {
     const timer = setTimeout(() => fetchBooks(), 300);
     return () => clearTimeout(timer);
-  }, [search, category]);
+  }, [search, category, statusFilter]);
 
   const handleDelete = async () => {
     if (!deleteModal.book) return;
-    setDeleteLoading(true);
+    setActionLoading(true);
     try {
       await api.delete(`/${deleteModal.book.id}`);
       setBooks(prev => prev.filter(b => b.id !== deleteModal.book.id));
       setDeleteModal({ open: false, book: null });
-      setSuccessMsg('Book deleted successfully!');
-      setTimeout(() => setSuccessMsg(''), 3000);
+      success('Book deleted successfully!');
     } catch (err) {
-      console.error('Delete failed:', err);
+      setDeleteModal({ open: false, book: null });
+      error(err.response?.data?.message || 'Failed to delete book.');
     } finally {
-      setDeleteLoading(false);
+      setActionLoading(false);
     }
+  };
+
+  const handleArchive = async () => {
+    if (!archiveModal.book) return;
+    setActionLoading(true);
+    try {
+      await api.put(`/${archiveModal.book.id}/archive`);
+      setArchiveModal({ open: false, book: null });
+      success('Book archived. It is now hidden from user search.');
+      fetchBooks();
+    } catch (err) {
+      setArchiveModal({ open: false, book: null });
+      error(err.response?.data?.message || 'Failed to archive book.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRestore = async (bookId) => {
+    try {
+      await api.put(`/${bookId}/restore`);
+      success('Book restored to catalog!');
+      fetchBooks();
+    } catch (err) {
+      error(err.response?.data?.message || 'Failed to restore book.');
+    }
+  };
+
+  const statusBadge = (status) => {
+    if (status === 'archived') return <span className="badge" style={{ background: 'rgba(100,116,139,0.2)', color: 'var(--text-muted)' }}>Archived</span>;
+    if (status === 'pending') return <span className="badge" style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--accent-400)' }}>Pending</span>;
+    return null;
   };
 
   return (
@@ -81,43 +111,37 @@ export default function BookList() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>📚 Book Management</h1>
-              <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>{books.length} books in catalog</p>
+              <p style={{ color: 'var(--text-secondary)', margin: '0.25rem 0 0', fontSize: '0.9rem' }}>{books.length} books shown</p>
             </div>
-            <Link to="/admin/books/create" className="btn btn-primary" id="btn-add-book" style={{ textDecoration: 'none' }}>
-              ➕ Add New Book
-            </Link>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link to="/admin/submissions" className="btn btn-outline" style={{ textDecoration: 'none' }}>
+                📬 Pending Submissions
+              </Link>
+              <Link to="/admin/books/create" className="btn btn-primary" id="btn-add-book" style={{ textDecoration: 'none' }}>
+                ➕ Add New Book
+              </Link>
+            </div>
           </div>
-
-          {successMsg && (
-            <div className="alert alert-success" style={{ marginBottom: '1rem' }}>
-              <span className="alert-icon">✅</span>{successMsg}
-            </div>
-          )}
 
           {/* Search & Filter Bar */}
           <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem 1.5rem' }}>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <div style={{ flex: 2, minWidth: '200px' }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="🔍 Search by title, author, or ISBN..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  id="search-books"
-                />
+                <input type="text" className="form-input" placeholder="🔍 Search by title, author, or ISBN..."
+                  value={search} onChange={(e) => setSearch(e.target.value)} id="search-books" />
               </div>
               <div style={{ flex: 1, minWidth: '150px' }}>
-                <select
-                  className="form-input"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  id="filter-category"
-                >
+                <select className="form-input" value={category} onChange={(e) => setCategory(e.target.value)} id="filter-category">
                   <option value="">All Categories</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: '140px' }}>
+                <select className="form-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="archived">Archived</option>
+                  <option value="pending">Pending</option>
                 </select>
               </div>
             </div>
@@ -132,7 +156,7 @@ export default function BookList() {
           ) : books.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
               <span style={{ fontSize: '3rem' }}>📖</span>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>No books found. Add your first book!</p>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>No books found.</p>
             </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -145,52 +169,39 @@ export default function BookList() {
                       <th>Category</th>
                       <th>ISBN</th>
                       <th>Copies</th>
+                      <th>Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {books.map(book => (
-                      <tr key={book.id}>
+                      <tr key={book.id} style={{ opacity: book.status === 'archived' ? 0.6 : 1 }}>
                         <td style={{ fontWeight: 600, minWidth: '200px' }}>{book.title}</td>
                         <td>{book.author}</td>
-                        <td>
-                          <span className="badge badge-category">{book.category || '—'}</span>
-                        </td>
+                        <td><span className="badge badge-category">{book.category || '—'}</span></td>
                         <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{book.isbn || '—'}</td>
                         <td>
                           <span className={`badge ${book.available_copies > 0 ? 'badge-available' : 'badge-unavailable'}`}>
                             {book.available_copies}/{book.total_copies}
                           </span>
                         </td>
+                        <td>{statusBadge(book.status) || <span className="badge badge-available">Active</span>}</td>
                         <td>
                           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                            <Link
-                              to={`/read/${book.id}`}
-                              className="btn btn-sm"
-                              style={{ background: 'var(--primary-600)', color: 'white', border: 'none' }}
-                              id={`btn-read-${book.id}`}
-                            >
-                              📖 Read
-                            </Link>
-                            <Link
-                              to={`/admin/books/${book.id}`}
-                              className="btn btn-sm btn-outline"
-                              id={`btn-view-${book.id}`}
-                            >
-                              👁️ View
-                            </Link>
-                            <Link
-                              to={`/admin/books/${book.id}/edit`}
-                              className="btn btn-sm btn-outline"
-                              id={`btn-edit-${book.id}`}
-                            >
+                            <Link to={`/admin/books/${book.id}/edit`} className="btn btn-sm btn-outline" id={`btn-edit-${book.id}`}>
                               ✏️ Edit
                             </Link>
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => setDeleteModal({ open: true, book })}
-                              id={`btn-delete-${book.id}`}
-                            >
+                            {book.status === 'archived' ? (
+                              <button className="btn btn-sm btn-outline" onClick={() => handleRestore(book.id)} style={{ borderColor: 'var(--success-500)', color: 'var(--success-500)' }}>
+                                ♻️ Restore
+                              </button>
+                            ) : (
+                              <button className="btn btn-sm btn-outline" onClick={() => setArchiveModal({ open: true, book })} id={`btn-archive-${book.id}`}
+                                style={{ borderColor: 'var(--warning-400)', color: 'var(--warning-400)' }}>
+                                📦 Archive
+                              </button>
+                            )}
+                            <button className="btn btn-sm btn-danger" onClick={() => setDeleteModal({ open: true, book })} id={`btn-delete-${book.id}`}>
                               🗑️
                             </button>
                           </div>
@@ -208,7 +219,7 @@ export default function BookList() {
       <Modal
         isOpen={deleteModal.open}
         title="Delete Book"
-        message={`Are you sure you want to delete "${deleteModal.book?.title}"? This action cannot be undone.`}
+        message={`Permanently delete "${deleteModal.book?.title}"? This fails if the book has active reservations — use Archive instead.`}
         icon="🗑️"
         iconClass="danger"
         confirmText="Yes, Delete"
@@ -216,7 +227,20 @@ export default function BookList() {
         confirmClass="btn-danger"
         onConfirm={handleDelete}
         onCancel={() => setDeleteModal({ open: false, book: null })}
-        loading={deleteLoading}
+        loading={actionLoading}
+      />
+
+      <Modal
+        isOpen={archiveModal.open}
+        title="Archive Book"
+        message={`Archive "${archiveModal.book?.title}"? It will be hidden from user search but remain in the database. You can restore it later.`}
+        icon="📦"
+        iconClass="warning"
+        confirmText="Yes, Archive"
+        cancelText="Cancel"
+        onConfirm={handleArchive}
+        onCancel={() => setArchiveModal({ open: false, book: null })}
+        loading={actionLoading}
       />
     </>
   );

@@ -1,7 +1,160 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
+/**
+ * Schema migrations — fixes mismatches between old DB and current code.
+ * SQLite doesn't support ALTER COLUMN, so we recreate affected tables.
+ */
+function runMigrations() {
+  // --- Migration 1: users.password must allow NULL (registration flow) ---
+  const userCols = db.prepare('PRAGMA table_info(users)').all();
+  const passwordCol = userCols.find(c => c.name === 'password');
+  if (passwordCol && passwordCol.notnull === 1) {
+    console.log('🔄 Migration: fixing users.password to allow NULL...');
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE users_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          password TEXT DEFAULT NULL,
+          phone TEXT DEFAULT NULL,
+          birth_date TEXT DEFAULT NULL,
+          birth_country TEXT DEFAULT NULL,
+          birth_city TEXT DEFAULT NULL,
+          gender TEXT DEFAULT NULL,
+          address TEXT DEFAULT NULL,
+          role TEXT NOT NULL DEFAULT 'end_user' CHECK(role IN ('system_admin', 'end_user')),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      // Consolidate birth_place_* (old) → birth_country/birth_city (new)
+      const hasBirthCountry = userCols.some(c => c.name === 'birth_country');
+      const hasBirthPlace   = userCols.some(c => c.name === 'birth_place_country');
+      const bcSrc = hasBirthCountry && hasBirthPlace
+        ? 'COALESCE(birth_country, birth_place_country)'
+        : hasBirthCountry ? 'birth_country'
+        : hasBirthPlace   ? 'birth_place_country'
+        : "''";
+      const bciSrc = hasBirthCountry && hasBirthPlace
+        ? 'COALESCE(birth_city, birth_place_city)'
+        : hasBirthCountry ? 'birth_city'
+        : hasBirthPlace   ? 'birth_place_city'
+        : "''";
+      db.exec(`
+        INSERT INTO users_new
+          (id, first_name, last_name, email, password, phone, birth_date,
+           birth_country, birth_city, gender, address, role, created_at, updated_at)
+        SELECT id, first_name, last_name, email, password, phone, birth_date,
+               ${bcSrc}, ${bciSrc}, gender, address, role, created_at, updated_at
+        FROM users
+      `);
+      db.exec('DROP TABLE users');
+      db.exec('ALTER TABLE users_new RENAME TO users');
+    })();
+    db.pragma('foreign_keys = ON');
+    console.log('✅ users table migrated.');
+  }
+
+  // --- Migration 2: reservations schema (reserved_at→borrowed_at, add due_date/created_at, fix statuses) ---
+  const resCols = db.prepare('PRAGMA table_info(reservations)').all();
+  const hasBorrowedAt = resCols.some(c => c.name === 'borrowed_at');
+  if (!hasBorrowedAt) {
+    console.log('🔄 Migration: fixing reservations table schema...');
+    const hasReservedAt = resCols.some(c => c.name === 'reserved_at');
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE reservations_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          book_id INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active'
+            CHECK(status IN ('active', 'returned', 'overdue', 'cancelled')),
+          borrowed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          due_date TEXT NOT NULL DEFAULT '2099-12-31',
+          returned_at DATETIME DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (book_id) REFERENCES books(id)
+        )
+      `);
+      if (hasReservedAt) {
+        db.exec(`
+          INSERT INTO reservations_new
+            (id, user_id, book_id, status, borrowed_at, due_date, returned_at, created_at)
+          SELECT
+            id, user_id, book_id,
+            CASE COALESCE(status, 'reserved')
+              WHEN 'reserved'   THEN 'active'
+              WHEN 'returned'   THEN 'returned'
+              WHEN 'cancelled'  THEN 'cancelled'
+              ELSE 'active'
+            END,
+            reserved_at,
+            date(reserved_at, '+14 days'),
+            returned_at,
+            reserved_at
+          FROM reservations
+        `);
+      }
+      db.exec('DROP TABLE reservations');
+      db.exec('ALTER TABLE reservations_new RENAME TO reservations');
+    })();
+    db.pragma('foreign_keys = ON');
+    console.log('✅ reservations table migrated.');
+  }
+
+  // --- Migration 3: books.category must allow NULL ---
+  const bookCols = db.prepare('PRAGMA table_info(books)').all();
+  const categoryCol = bookCols.find(c => c.name === 'category');
+  if (categoryCol && categoryCol.notnull === 1) {
+    console.log('🔄 Migration: fixing books.category to allow NULL...');
+    db.pragma('foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE books_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          author TEXT NOT NULL,
+          category TEXT DEFAULT NULL,
+          isbn TEXT DEFAULT NULL UNIQUE,
+          publication_date TEXT DEFAULT NULL,
+          pages INTEGER DEFAULT NULL,
+          description TEXT DEFAULT NULL,
+          cover_image TEXT DEFAULT NULL,
+          available_copies INTEGER DEFAULT 1,
+          total_copies INTEGER DEFAULT 1,
+          status TEXT NOT NULL DEFAULT 'active',
+          submitted_by INTEGER DEFAULT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      db.exec(`
+        INSERT INTO books_new
+          (id, title, author, category, isbn, publication_date, pages, description,
+           cover_image, available_copies, total_copies, status, submitted_by, created_at, updated_at)
+        SELECT
+          id, title, author, category, isbn, publication_date, pages, description,
+          cover_image, available_copies, total_copies, status, submitted_by, created_at, updated_at
+        FROM books
+      `);
+      db.exec('DROP TABLE books');
+      db.exec('ALTER TABLE books_new RENAME TO books');
+    })();
+    db.pragma('foreign_keys = ON');
+    console.log('✅ books table migrated.');
+  }
+}
+
 function initDatabase() {
+  // Run schema migrations before any CREATE TABLE IF NOT EXISTS calls
+  runMigrations();
+
   // Create users table
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -81,9 +234,9 @@ function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       book_id INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'returned', 'overdue')),
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'returned', 'overdue', 'cancelled')),
       borrowed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      due_date TEXT NOT NULL,
+      due_date TEXT NOT NULL DEFAULT '2099-12-31',
       returned_at DATETIME DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id),
@@ -121,6 +274,32 @@ function initDatabase() {
     )
   `);
 
+  // Books column migrations (add any missing columns to existing databases)
+  const bookMigrations = [
+    ["publication_date", "TEXT DEFAULT NULL"],
+    ["pages",            "INTEGER DEFAULT NULL"],
+    ["cover_image",      "TEXT DEFAULT NULL"],
+    ["updated_at",       "DATETIME DEFAULT NULL"],
+    ["status",           "TEXT NOT NULL DEFAULT 'active'"],
+    ["submitted_by",     "INTEGER DEFAULT NULL"],
+  ];
+  for (const [col, def] of bookMigrations) {
+    try { db.exec(`ALTER TABLE books ADD COLUMN ${col} ${def}`); } catch (_) { /* already exists */ }
+  }
+
+  // Create favorites table (Sprint 2 - Favorites)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      book_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (book_id) REFERENCES books(id),
+      UNIQUE(user_id, book_id)
+    )
+  `);
+
   // Create indexes
   db.exec(`CREATE INDEX IF NOT EXISTS idx_token ON token_blacklist(token)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_expires ON token_blacklist(expires_at)`);
@@ -133,6 +312,9 @@ function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_reservations_status ON reservations(status)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_user_books_user ON user_books(user_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_user_books_book ON user_books(book_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_favorites_book ON favorites(book_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_books_status ON books(status)`);
 
   // Seed admin user if not exists
   const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@library.com');

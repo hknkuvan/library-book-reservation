@@ -139,17 +139,48 @@ class UserBook {
   }
 
   /**
-   * Get reviews for a specific book
+   * Upsert a review directly by bookId (used from book detail page)
+   * Creates the user_book entry if it doesn't exist
+   */
+  static upsertReview(userId, bookId, rating, review) {
+    const book = db.prepare('SELECT id FROM books WHERE id = ?').get(bookId);
+    if (!book) return { error: 'Book not found.' };
+    if (!rating || rating < 1 || rating > 5) return { error: 'Rating must be between 1 and 5.' };
+    if (!review || !review.trim()) return { error: 'Review text is required.' };
+
+    const existing = db.prepare('SELECT id FROM user_books WHERE user_id = ? AND book_id = ?').get(userId, bookId);
+    if (existing) {
+      db.prepare(`UPDATE user_books SET rating = ?, review = ?, status = 'read', updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .run(rating, review.trim(), existing.id);
+      return { success: true, userBook: UserBook.findById(existing.id) };
+    }
+    const result = db.prepare(`INSERT INTO user_books (user_id, book_id, status, rating, review) VALUES (?, ?, 'read', ?, ?)`)
+      .run(userId, bookId, rating, review.trim());
+    return { success: true, userBook: UserBook.findById(result.lastInsertRowid) };
+  }
+
+  /**
+   * Get reviews for a specific book (includes user_id so frontend can identify own review)
    */
   static getBookReviews(bookId) {
     return db.prepare(`
-      SELECT ub.rating, ub.review, ub.updated_at,
+      SELECT ub.id, ub.user_id, ub.rating, ub.review, ub.updated_at,
              u.first_name, u.last_name
       FROM user_books ub
       JOIN users u ON ub.user_id = u.id
       WHERE ub.book_id = ? AND ub.review IS NOT NULL
       ORDER BY ub.updated_at DESC
     `).all(bookId);
+  }
+
+  /**
+   * Delete a review (sets rating and review to null, keeps the library entry)
+   */
+  static deleteReview(userId, bookId) {
+    const ub = db.prepare('SELECT id FROM user_books WHERE user_id = ? AND book_id = ? AND review IS NOT NULL').get(userId, bookId);
+    if (!ub) return { error: 'Review not found.' };
+    db.prepare('UPDATE user_books SET rating = NULL, review = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(ub.id);
+    return { success: true };
   }
 }
 

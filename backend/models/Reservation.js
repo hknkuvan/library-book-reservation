@@ -136,6 +136,21 @@ class Reservation {
   }
 
   /**
+   * Cancel an active reservation
+   */
+  static cancel(reservationId, userId) {
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(reservationId);
+    if (!reservation) return { error: 'Reservation not found.' };
+    if (reservation.user_id !== userId) return { error: 'Not your reservation.' };
+    if (reservation.status !== 'active') return { error: 'Only active reservations can be cancelled.' };
+
+    db.prepare("UPDATE reservations SET status = 'cancelled', returned_at = CURRENT_TIMESTAMP WHERE id = ?").run(reservationId);
+    db.prepare('UPDATE books SET available_copies = available_copies + 1 WHERE id = ?').run(reservation.book_id);
+
+    return { success: true, reservation: Reservation.findById(reservationId) };
+  }
+
+  /**
    * Mark overdue reservations
    */
   static checkOverdue() {

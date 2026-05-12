@@ -95,6 +95,38 @@ exports.getReadingStats = (req, res) => {
 };
 
 /**
+ * POST /api/user-books/review — Submit or update review from book detail page
+ */
+exports.submitReview = (req, res) => {
+  try {
+    const { book_id, rating, review } = req.body;
+    if (!book_id) return res.status(400).json({ success: false, message: 'book_id is required.' });
+
+    const result = UserBook.upsertReview(req.user.id, book_id, rating, review);
+    if (result.error) return res.status(400).json({ success: false, message: result.error });
+
+    res.json({ success: true, message: 'Review saved!', userBook: result.userBook });
+  } catch (error) {
+    console.error('Submit review error:', error);
+    res.status(500).json({ success: false, message: 'Failed to save review.' });
+  }
+};
+
+/**
+ * DELETE /api/user-books/review/:bookId — Delete own review
+ */
+exports.deleteReview = (req, res) => {
+  try {
+    const result = UserBook.deleteReview(req.user.id, req.params.bookId);
+    if (result.error) return res.status(404).json({ success: false, message: result.error });
+    res.json({ success: true, message: 'Review deleted.' });
+  } catch (error) {
+    console.error('Delete review error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete review.' });
+  }
+};
+
+/**
  * GET /api/user-books/reviews/:bookId — Get reviews for a book
  */
 exports.getBookReviews = (req, res) => {

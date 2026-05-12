@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const bookRoutes = require('./routes/books');
 const reservationRoutes = require('./routes/reservations');
 const userBookRoutes = require('./routes/userBooks');
+const favoriteRoutes = require('./routes/favorites');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/user-books', userBookRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
 // Admin: get all users (simple inline)
 const { authenticate, requireAdmin } = require('./middleware/auth');
@@ -45,14 +47,42 @@ app.get('/api/admin/users', authenticate, requireAdmin, (req, res) => {
 
 app.get('/api/admin/stats', authenticate, requireAdmin, (req, res) => {
   try {
-    const totalBooks = db.prepare('SELECT COUNT(*) as c FROM books').get().c;
+    const totalBooks = db.prepare("SELECT COUNT(*) as c FROM books WHERE status = 'active'").get().c;
+    const pendingBooks = db.prepare("SELECT COUNT(*) as c FROM books WHERE status = 'pending'").get().c;
+    const archivedBooks = db.prepare("SELECT COUNT(*) as c FROM books WHERE status = 'archived'").get().c;
     const totalUsers = db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'end_user'").get().c;
     const activeRes = db.prepare("SELECT COUNT(*) as c FROM reservations WHERE status = 'active'").get().c;
     const overdueRes = db.prepare("SELECT COUNT(*) as c FROM reservations WHERE status = 'overdue'").get().c;
     const returnedRes = db.prepare("SELECT COUNT(*) as c FROM reservations WHERE status = 'returned'").get().c;
     const totalRes = db.prepare('SELECT COUNT(*) as c FROM reservations').get().c;
-    const recentBooks = db.prepare("SELECT COUNT(*) as c FROM books WHERE created_at >= date('now', '-30 days')").get().c;
-    res.json({ success: true, stats: { totalBooks, totalUsers, activeRes, overdueRes, returnedRes, totalRes, recentBooks } });
+    const recentBooks = db.prepare("SELECT COUNT(*) as c FROM books WHERE created_at >= date('now', '-30 days') AND status = 'active'").get().c;
+
+    // Monthly reservation counts for the last 12 months
+    const monthlyStats = db.prepare(`
+      SELECT strftime('%Y-%m', borrowed_at) as month, COUNT(*) as count
+      FROM reservations
+      WHERE borrowed_at >= date('now', '-12 months')
+      GROUP BY month
+      ORDER BY month ASC
+    `).all();
+
+    // Top 10 most reserved books
+    const popularBooks = db.prepare(`
+      SELECT b.id, b.title, b.author, b.category, b.cover_image,
+             COUNT(r.id) as reservation_count
+      FROM books b
+      LEFT JOIN reservations r ON b.id = r.book_id
+      GROUP BY b.id
+      ORDER BY reservation_count DESC
+      LIMIT 10
+    `).all();
+
+    res.json({
+      success: true,
+      stats: { totalBooks, pendingBooks, archivedBooks, totalUsers, activeRes, overdueRes, returnedRes, totalRes, recentBooks },
+      monthlyStats,
+      popularBooks
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch stats.' });
   }

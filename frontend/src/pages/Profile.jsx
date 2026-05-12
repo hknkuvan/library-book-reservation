@@ -1,12 +1,49 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
+import axios from 'axios';
+
+const API = 'http://localhost:5000/api';
 
 export default function Profile() {
-  const { user, updateProfile, deleteAccount } = useAuth();
+  const { user, token, updateProfile, deleteAccount } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const navigate = useNavigate();
+  const [wantToRead, setWantToRead] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [listsLoading, setListsLoading] = useState(true);
+
+  const headers = { Authorization: `Bearer ${token}` };
+
+  useEffect(() => {
+    if (!token) return;
+    Promise.all([
+      axios.get(`${API}/user-books`, { headers, params: { status: 'want_to_read' } }),
+      axios.get(`${API}/favorites`, { headers })
+    ]).then(([wtrRes, favRes]) => {
+      setWantToRead(wtrRes.data.books || []);
+      setFavorites(favRes.data.favorites || []);
+    }).catch(() => {}).finally(() => setListsLoading(false));
+  }, [token]);
+
+  const handleRemoveWantToRead = async (userBookId) => {
+    try {
+      await axios.delete(`${API}/user-books/${userBookId}`, { headers });
+      setWantToRead(prev => prev.filter(b => b.id !== userBookId));
+      toastSuccess('Removed from Want to Read list.');
+    } catch (e) { toastError('Failed to remove.'); }
+  };
+
+  const handleRemoveFavorite = async (bookId) => {
+    try {
+      await axios.post(`${API}/favorites/${bookId}`, {}, { headers });
+      setFavorites(prev => prev.filter(f => f.book_id !== bookId));
+      toastSuccess('Removed from Favorites.');
+    } catch (e) { toastError('Failed to remove.'); }
+  };
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -298,6 +335,64 @@ export default function Profile() {
           </div>
         </div>
       </main>
+
+      {/* Want to Read Section */}
+      <div className="card card-wide" style={{ maxWidth: '600px', margin: '1.5rem auto 0' }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          📋 Want to Read <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-muted)' }}>({wantToRead.length})</span>
+        </h2>
+        {listsLoading ? (
+          <div className="spinner" style={{ margin: '1rem auto', display: 'block' }}></div>
+        ) : wantToRead.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            No books yet. <Link to="/books" style={{ color: 'var(--primary-400)' }}>Browse books</Link> and click "Want to Read".
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {wantToRead.map(book => (
+              <div key={book.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)' }}>
+                <div style={{ width: 40, height: 55, borderRadius: 'var(--radius-sm)', overflow: 'hidden', flexShrink: 0, background: 'var(--primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                  {book.cover_image ? <img src={book.cover_image} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : book.title.charAt(0)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Link to={`/books/${book.book_id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book.title}</Link>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>by {book.author}</span>
+                </div>
+                <button onClick={() => handleRemoveWantToRead(book.id)} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem' }}>🗑️</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Favorites Section */}
+      <div className="card card-wide" style={{ maxWidth: '600px', margin: '1.5rem auto 0' }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          ❤️ Favorites <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-muted)' }}>({favorites.length})</span>
+        </h2>
+        {listsLoading ? (
+          <div className="spinner" style={{ margin: '1rem auto', display: 'block' }}></div>
+        ) : favorites.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            No favorites yet. Click the ❤️ on any book to save it here.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {favorites.map(fav => (
+              <div key={fav.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)' }}>
+                <div style={{ width: 40, height: 55, borderRadius: 'var(--radius-sm)', overflow: 'hidden', flexShrink: 0, background: 'var(--primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
+                  {fav.cover_image ? <img src={fav.cover_image} alt={fav.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : fav.title.charAt(0)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Link to={`/books/${fav.book_id}`} style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600, fontSize: '0.9rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fav.title}</Link>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>by {fav.author}</span>
+                </div>
+                <button onClick={() => handleRemoveFavorite(fav.book_id)} title="Remove from Favorites" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: '1.1rem' }}>❤️</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       <Modal

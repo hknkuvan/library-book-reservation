@@ -39,6 +39,20 @@ exports.returnBook = (req, res) => {
 };
 
 /**
+ * DELETE /api/reservations/:id — Cancel an active reservation
+ */
+exports.cancelReservation = (req, res) => {
+  try {
+    const result = Reservation.cancel(req.params.id, req.user.id);
+    if (result.error) return res.status(400).json({ success: false, message: result.error });
+    res.json({ success: true, message: 'Reservation cancelled successfully.', reservation: result.reservation });
+  } catch (error) {
+    console.error('Cancel reservation error:', error);
+    res.status(500).json({ success: false, message: 'Failed to cancel reservation.' });
+  }
+};
+
+/**
  * GET /api/reservations/my — User's reservations
  */
 exports.getMyReservations = (req, res) => {

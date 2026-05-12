@@ -21,9 +21,9 @@ export default function AdminDashboard() {
     { id: 'manage-books', icon: '📚', title: 'Manage Books', desc: `${stats?.totalBooks || '...'} books in catalog.`, to: '/admin/books', color: 'rgba(99, 102, 241, 0.15)' },
     { id: 'manage-users', icon: '👥', title: 'Manage Users', desc: `${stats?.totalUsers || '...'} registered members.`, to: '/admin/users', color: 'rgba(16, 185, 129, 0.15)' },
     { id: 'reservations', icon: '📋', title: 'Reservations', desc: `${stats?.activeRes || 0} active, ${stats?.overdueRes || 0} overdue.`, to: '/admin/reservations', color: 'rgba(245, 158, 11, 0.15)' },
-    { id: 'reports', icon: '📊', title: 'Reports', desc: `${stats?.totalRes || 0} total reservations processed.`, to: '/admin/stats', color: 'rgba(139, 92, 246, 0.15)' },
-    { id: 'settings', icon: '⚙️', title: 'System Settings', desc: 'Configure library policies and settings.', to: '/admin', color: 'rgba(236, 72, 153, 0.15)' },
-    { id: 'availability', icon: '📦', title: 'Book Availability', desc: `${stats?.recentBooks || 0} new books in last 30 days.`, to: '/admin/books', color: 'rgba(6, 182, 212, 0.15)' },
+    { id: 'reports', icon: '📊', title: 'Reports & Analytics', desc: `${stats?.totalRes || 0} total reservations processed.`, to: '/admin/stats', color: 'rgba(139, 92, 246, 0.15)' },
+    { id: 'submissions', icon: '📬', title: 'Pending Submissions', desc: `${stats?.pendingBooks || 0} book${stats?.pendingBooks !== 1 ? 's' : ''} awaiting approval.`, to: '/admin/submissions', color: 'rgba(245, 158, 11, 0.15)' },
+    { id: 'availability', icon: '📦', title: 'New Arrivals', desc: `${stats?.recentBooks || 0} new books in last 30 days.`, to: '/admin/books', color: 'rgba(6, 182, 212, 0.15)' },
   ];
 
   return (

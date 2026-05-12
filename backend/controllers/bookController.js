@@ -55,8 +55,9 @@ const createBook = (req, res) => {
  */
 const getAllBooks = (req, res) => {
   try {
-    const { search, category, page, limit } = req.query;
-    const result = Book.findAll({ search, category, page, limit });
+    const { search, category, page, limit, status } = req.query;
+    const adminView = req.user.role === 'system_admin';
+    const result = Book.findAll({ search, category, page, limit, adminView, status });
 
     res.json({
       success: true,
@@ -171,31 +172,138 @@ const updateBook = (req, res) => {
 };
 
 /**
- * Delete a book (Admin only)
+ * Delete a book (Admin only) — blocked if active reservations exist
  * DELETE /api/books/:id
  */
 const deleteBook = (req, res) => {
   try {
     const bookId = req.params.id;
-    const deleted = Book.delete(bookId);
+    const existing = Book.findById(bookId);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Book not found.' });
+    }
 
-    if (!deleted) {
-      return res.status(404).json({
+    if (Book.hasActiveReservations(bookId)) {
+      return res.status(409).json({
         success: false,
-        message: 'Book not found.'
+        message: 'Cannot delete this book — it has active reservations. Archive it instead.'
       });
     }
 
-    res.json({
-      success: true,
-      message: 'Book deleted successfully.'
-    });
+    Book.delete(bookId);
+    res.json({ success: true, message: 'Book deleted successfully.' });
   } catch (error) {
     console.error('Delete book error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'An error occurred while deleting the book.'
-    });
+    res.status(500).json({ success: false, message: 'An error occurred while deleting the book.' });
+  }
+};
+
+/**
+ * Archive a book (Admin only) — soft delete, hidden from users
+ * PUT /api/books/:id/archive
+ */
+const archiveBook = (req, res) => {
+  try {
+    const book = Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ success: false, message: 'Book not found.' });
+    if (book.status === 'archived') return res.status(400).json({ success: false, message: 'Book is already archived.' });
+
+    const updated = Book.archive(req.params.id);
+    res.json({ success: true, message: 'Book archived successfully.', book: updated });
+  } catch (error) {
+    console.error('Archive book error:', error);
+    res.status(500).json({ success: false, message: 'Failed to archive book.' });
+  }
+};
+
+/**
+ * Restore an archived book (Admin only)
+ * PUT /api/books/:id/restore
+ */
+const restoreBook = (req, res) => {
+  try {
+    const book = Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ success: false, message: 'Book not found.' });
+
+    const updated = Book.restore(req.params.id);
+    res.json({ success: true, message: 'Book restored to catalog.', book: updated });
+  } catch (error) {
+    console.error('Restore book error:', error);
+    res.status(500).json({ success: false, message: 'Failed to restore book.' });
+  }
+};
+
+/**
+ * Submit a new book entry (logged-in user)
+ * POST /api/books/submit
+ */
+const submitBook = (req, res) => {
+  try {
+    const { title, author, category, isbn, description, cover_image } = req.body;
+    if (!title || !title.trim()) return res.status(400).json({ success: false, message: 'Title is required.' });
+    if (!author || !author.trim()) return res.status(400).json({ success: false, message: 'Author is required.' });
+
+    if (isbn) {
+      const existing = Book.findByIsbn(isbn);
+      if (existing) return res.status(409).json({ success: false, message: 'A book with this ISBN already exists.' });
+    }
+
+    const book = Book.createPending({ title: title.trim(), author: author.trim(), category, isbn, description, cover_image, submitted_by: req.user.id });
+    res.status(201).json({ success: true, message: 'Book submitted for review! It will appear in the catalog after admin approval.', book });
+  } catch (error) {
+    console.error('Submit book error:', error);
+    res.status(500).json({ success: false, message: 'Failed to submit book.' });
+  }
+};
+
+/**
+ * Get all pending submissions (Admin only)
+ * GET /api/books/pending
+ */
+const getPendingSubmissions = (req, res) => {
+  try {
+    const books = Book.findPending();
+    res.json({ success: true, books });
+  } catch (error) {
+    console.error('Get pending error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch pending submissions.' });
+  }
+};
+
+/**
+ * Approve a pending submission (Admin only)
+ * PUT /api/books/:id/approve
+ */
+const approveSubmission = (req, res) => {
+  try {
+    const book = Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ success: false, message: 'Book not found.' });
+    if (book.status !== 'pending') return res.status(400).json({ success: false, message: 'Book is not pending approval.' });
+
+    const { title, author, category, isbn, description, cover_image } = req.body;
+    const updated = Book.approve(req.params.id, { title, author, category, isbn, description, cover_image });
+    res.json({ success: true, message: 'Book approved and added to catalog.', book: updated });
+  } catch (error) {
+    console.error('Approve submission error:', error);
+    res.status(500).json({ success: false, message: 'Failed to approve submission.' });
+  }
+};
+
+/**
+ * Reject a pending submission (Admin only)
+ * PUT /api/books/:id/reject
+ */
+const rejectSubmission = (req, res) => {
+  try {
+    const book = Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ success: false, message: 'Book not found.' });
+    if (book.status !== 'pending') return res.status(400).json({ success: false, message: 'Book is not pending approval.' });
+
+    Book.reject(req.params.id);
+    res.json({ success: true, message: 'Submission rejected.' });
+  } catch (error) {
+    console.error('Reject submission error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reject submission.' });
   }
 };
 
@@ -251,6 +359,12 @@ module.exports = {
   getBookById,
   updateBook,
   deleteBook,
+  archiveBook,
+  restoreBook,
+  submitBook,
+  getPendingSubmissions,
+  approveSubmission,
+  rejectSubmission,
   getCategories,
   getChapters,
   getChapterByNumber

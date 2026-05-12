@@ -27,8 +27,10 @@ export default function Header() {
           <>
             <Link to="/admin" className="nav-link" id="nav-admin-dashboard">Dashboard</Link>
             <Link to="/admin/books" className="nav-link" id="nav-admin-books">Books</Link>
+            <Link to="/admin/submissions" className="nav-link" id="nav-admin-submissions">Submissions</Link>
             <Link to="/admin/reservations" className="nav-link" id="nav-admin-reservations">Reservations</Link>
             <Link to="/admin/users" className="nav-link" id="nav-admin-users">Users</Link>
+            <Link to="/admin/stats" className="nav-link" id="nav-admin-stats">Reports</Link>
           </>
         ) : (
           <>
@@ -36,6 +38,7 @@ export default function Header() {
             <Link to="/books" className="nav-link" id="nav-browse">Browse</Link>
             <Link to="/my-library" className="nav-link" id="nav-library">My Books</Link>
             <Link to="/reservations" className="nav-link" id="nav-reservations">Reservations</Link>
+            <Link to="/submit-book" className="nav-link" id="nav-submit-book">Submit Book</Link>
             <Link to="/profile" className="nav-link" id="nav-profile">Profile</Link>
           </>
         )}

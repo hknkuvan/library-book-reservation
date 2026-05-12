@@ -9,6 +9,7 @@ router.use(authenticate);
 // User routes
 router.post('/', ctrl.borrowBook);                    // Borrow a book
 router.put('/:id/return', ctrl.returnBook);            // Return a book
+router.delete('/:id', ctrl.cancelReservation);         // Cancel a reservation
 router.get('/my', ctrl.getMyReservations);              // My reservations
 
 // Admin routes
